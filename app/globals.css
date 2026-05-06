@@ -40,3 +40,64 @@ button {
   background: rgba(14, 165, 233, 0.18);
   color: #0f172a;
 }
+
+@keyframes modal-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes overlay-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes feature-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.modal-overlay-animate {
+  animation: overlay-fade-in 220ms ease-out;
+}
+
+.modal-pop-animate {
+  animation: modal-pop-in 260ms ease-out;
+}
+
+.feature-float {
+  animation: feature-float 5.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 420ms ease, transform 420ms ease;
+  will-change: transform, opacity;
+}
+
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 1024px) {
+  .feature-float {
+    animation: none;
+  }
+}

@@ -55,7 +55,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
         "after:absolute after:bottom-[-6px] after:left-[8%] after:right-[8%] after:h-[6px] after:rounded-b-xl",
         "after:bg-linear-to-b after:from-sky-700/40 after:to-transparent after:blur-sm",
         // Transform / 3D
-        "transform-gpu transition-all duration-300 ease-out",
+        "transform-gpu transition-transform duration-300 ease-out feature-float will-change-transform",
         "hover:-translate-y-1 hover:scale-[1.02]",
         "hover:shadow-[0_20px_60px_rgba(14,165,233,0.45),0_6px_20px_rgba(14,165,233,0.3)]",
         // Perspective tilt on hover via CSS vars

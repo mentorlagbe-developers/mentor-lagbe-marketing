@@ -65,7 +65,7 @@ export function HeroSection({ user, onPrimaryAction }: HeroSectionProps) {
               iconPosition="left"
               variant="elevated"
               subtitleColor="text-sky-100"
-              className="animate-[float_5s_ease-in-out_infinite] bg-linear-to-br from-cyan-600 via-sky-500 to-indigo-500 shadow-[0_18px_46px_rgba(14,116,215,0.42)]"
+              className="bg-linear-to-br from-cyan-600 via-sky-500 to-indigo-500 shadow-[0_14px_36px_rgba(14,116,215,0.32)]"
               style={{
                 position: "absolute",
                 top: "10px",
@@ -83,7 +83,7 @@ export function HeroSection({ user, onPrimaryAction }: HeroSectionProps) {
               iconPosition="left"
               variant="default"
               subtitleColor="text-cyan-100"
-              className="animate-[float_6s_ease-in-out_0.8s_infinite] bg-linear-to-br from-emerald-500 via-teal-500 to-cyan-500 shadow-[0_18px_46px_rgba(13,148,136,0.4)]"
+              className="bg-linear-to-br from-emerald-500 via-teal-500 to-cyan-500 shadow-[0_14px_36px_rgba(13,148,136,0.3)]"
               style={{
                 position: "absolute",
                 top: "140px",
@@ -107,7 +107,7 @@ export function HeroSection({ user, onPrimaryAction }: HeroSectionProps) {
               iconPosition="right"
               variant="elevated"
               subtitleColor="text-sky-100"
-              className="animate-[float_5.5s_ease-in-out_0.4s_infinite] bg-linear-to-br from-violet-600 via-indigo-500 to-blue-500 shadow-[0_18px_46px_rgba(79,70,229,0.42)]"
+              className="bg-linear-to-br from-violet-600 via-indigo-500 to-blue-500 shadow-[0_14px_36px_rgba(79,70,229,0.32)]"
               style={{
                 position: "absolute",
                 top: "10px",
@@ -125,7 +125,7 @@ export function HeroSection({ user, onPrimaryAction }: HeroSectionProps) {
               iconPosition="right"
               variant="glass"
               subtitleColor="text-cyan-100"
-              className="animate-[float_6.5s_ease-in-out_1.2s_infinite] bg-linear-to-br from-fuchsia-500 via-pink-500 to-rose-500 shadow-[0_18px_46px_rgba(236,72,153,0.38)]"
+              className="bg-linear-to-br from-fuchsia-500 via-pink-500 to-rose-500 shadow-[0_14px_36px_rgba(236,72,153,0.3)]"
               style={{
                 position: "absolute",
                 top: "140px",

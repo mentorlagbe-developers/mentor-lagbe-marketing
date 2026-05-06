@@ -3,6 +3,7 @@ export type Gender = "male" | "female" | "other";
 type StoredUser = {
   id: string;
   fullName: string;
+  email: string;
   age: number;
   gender: Gender;
   phone: string;
@@ -16,6 +17,7 @@ export type AuthUser = Omit<StoredUser, "password">;
 
 type RegisterPayload = {
   fullName: string;
+  email: string;
   phone: string;
   password: string;
 };
@@ -23,6 +25,8 @@ type RegisterPayload = {
 const USERS_KEY = "mentorlagbe-users";
 const CURRENT_USER_KEY = "mentorlagbe-current-user";
 const AUTH_EVENT = "mentorlagbe-auth-change";
+let cachedCurrentUserRaw: string | null | undefined;
+let cachedCurrentUserSnapshot: AuthUser | null = null;
 
 function hasWindow() {
   return typeof window !== "undefined";
@@ -53,7 +57,24 @@ function readUsers(): StoredUser[] {
   }
 
   try {
-    return JSON.parse(raw) as StoredUser[];
+    const parsed = JSON.parse(raw) as Array<Partial<StoredUser>>;
+
+    // Backward-compatible migration for legacy users saved before `email` existed.
+    return parsed.map((user) => ({
+      id: user.id ?? crypto.randomUUID(),
+      fullName: user.fullName ?? "Student",
+      email:
+        typeof user.email === "string" && user.email.trim()
+          ? user.email.trim().toLowerCase()
+          : `${(user.phone ?? "user").replace(/[^\d]/g, "")}@mentorlagbe.local`,
+      age: typeof user.age === "number" ? user.age : 0,
+      gender: user.gender ?? "other",
+      phone: user.phone ?? "",
+      password: user.password ?? "",
+      verifiedAt: user.verifiedAt ?? new Date().toISOString(),
+      createdAt: user.createdAt ?? new Date().toISOString(),
+      avatarSeed: user.avatarSeed ?? "ML",
+    }));
   } catch {
     return [];
   }
@@ -89,6 +110,7 @@ export function ensureDemoUser() {
   users.push({
     id: crypto.randomUUID(),
     fullName: "Demo Student",
+    email: "demo@mentorlagbe.com",
     age: 21,
     gender: "male",
     phone: demoPhone,
@@ -151,15 +173,21 @@ export function authenticateUser(phone: string, password: string): AuthUser | nu
 export function registerUser(payload: RegisterPayload): AuthUser {
   const users = readUsers();
   const normalizedPhone = normalizePhone(payload.phone);
+  const normalizedEmail = payload.email.trim().toLowerCase();
 
   if (users.some((user) => user.phone === normalizedPhone)) {
     throw new Error("An account with this phone number already exists.");
+  }
+
+  if (users.some((user) => (user.email ?? "").toLowerCase() === normalizedEmail)) {
+    throw new Error("An account with this email already exists.");
   }
 
   const now = new Date().toISOString();
   const nextUser: StoredUser = {
     id: crypto.randomUUID(),
     fullName: payload.fullName,
+    email: normalizedEmail,
     age: 0,
     gender: "other",
     phone: normalizedPhone,
@@ -218,6 +246,28 @@ export function subscribeAuthStore(callback: () => void) {
 }
 
 export function readAuthSnapshot() {
-  ensureDemoUser();
-  return getCurrentUser();
+  // getSnapshot for useSyncExternalStore must be pure and stable.
+  if (!hasWindow()) {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(CURRENT_USER_KEY);
+  if (raw === cachedCurrentUserRaw) {
+    return cachedCurrentUserSnapshot;
+  }
+
+  cachedCurrentUserRaw = raw;
+
+  if (!raw) {
+    cachedCurrentUserSnapshot = null;
+    return cachedCurrentUserSnapshot;
+  }
+
+  try {
+    cachedCurrentUserSnapshot = JSON.parse(raw) as AuthUser;
+  } catch {
+    cachedCurrentUserSnapshot = null;
+  }
+
+  return cachedCurrentUserSnapshot;
 }

@@ -1,3 +1,6 @@
+ "use client";
+
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowRight, BadgeCheck, Clock, Crown, UserRound } from "lucide-react";
 import { BadgePill } from "@/app/components/ui/badge-pill";
@@ -27,19 +30,46 @@ const features = [
 ] as const;
 
 export function LiveSupportSection({ onCtaClick }: LiveSupportSectionProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!sectionRef.current) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="relative overflow-hidden bg-white py-16 sm:py-20 lg:py-24">
+    <section
+      ref={sectionRef}
+      className="relative overflow-hidden bg-white py-16 sm:py-20 lg:py-24"
+    >
       {/* Subtle background gradient */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(186,230,255,0.18),transparent)]" />
 
       {/* Premium Service badge — centered above the two-column grid */}
-      <div className="mb-10 flex justify-center px-4">
+      <div className={`mb-10 flex justify-center px-4 scroll-reveal ${isVisible ? "is-visible" : ""}`}>
         <BadgePill icon={Crown} variant="sky">
           One-to-One Mentorship
         </BadgePill>
       </div>
 
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+      <div
+        className={`mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8 scroll-reveal ${isVisible ? "is-visible" : ""}`}
+      >
 
         {/* ── Left: illustration ── */}
         <div className="relative flex items-center justify-center">

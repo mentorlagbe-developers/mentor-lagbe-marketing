@@ -2,21 +2,26 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { AuthModal } from "@/app/components/ui/auth-modal";
+import { ContactModal } from "@/app/components/ui/contact-modal";
 import type { AuthUser } from "@/lib/mock-auth";
 import {
   readAuthSnapshot,
-  setCurrentUser,
   subscribeAuthStore,
 } from "@/lib/mock-auth";
 import { HeroSection } from "@/app/sections/landing/hero-section";
 import { LandingHeader } from "@/app/sections/landing/landing-header";
 import { LiveSupportSection } from "@/app/sections/landing/live-support-section";
+import { ConfusionClaritySection } from "@/app/sections/landing/confusion-clarity-section";
+import { TopicExpertGridSection } from "@/app/sections/landing/topic-expert-grid-section";
+import { HowItWorksSection } from "@/app/sections/landing/how-it-works-section";
+import Footer from "@/app/components/ui/Footer";
 
-type AuthEntryView = "login" | "register" | "forgot";
+type AuthEntryView = "login" | "register";
 
 export function LandingPageShell() {
   const [authView, setAuthView] = useState<AuthEntryView>("login");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const user = useSyncExternalStore<AuthUser | null>(
     subscribeAuthStore,
     readAuthSnapshot,
@@ -28,17 +33,14 @@ export function LandingPageShell() {
     setIsModalOpen(true);
   }
 
-  function handleLogout() {
-    setCurrentUser(null);
-  }
-
   return (
     <>
       <div className="min-h-screen bg-white text-slate-900">
         <LandingHeader
           user={user}
-          onSignupClick={() => openAuth("login")}
-          onLogoutClick={handleLogout}
+          onAuthClick={() => openAuth("login")}
+          onDashboardClick={() => {}}
+          onContactClick={() => setIsContactModalOpen(true)}
         />
 
         <main>
@@ -48,6 +50,10 @@ export function LandingPageShell() {
           />
 
           <LiveSupportSection onCtaClick={() => openAuth("register")} />
+          <ConfusionClaritySection />
+          <TopicExpertGridSection />
+          <HowItWorksSection />
+          <Footer/>
         </main>
       </div>
 
@@ -62,6 +68,11 @@ export function LandingPageShell() {
           }}
         />
       ) : null}
+
+      <ContactModal
+        open={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+      />
     </>
   );
 }

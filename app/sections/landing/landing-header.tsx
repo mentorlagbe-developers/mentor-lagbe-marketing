@@ -2,38 +2,43 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import {
-  BellIcon,
-  ChevronDownIcon,
-  GlobeIcon,
-  SearchIcon,
-} from "@/app/components/ui/icons";
+import { ChevronDownIcon, GlobeIcon, SearchIcon } from "@/app/components/ui/icons";
 import { Logo } from "@/app/components/ui/logo";
 import type { AuthUser } from "@/lib/mock-auth";
 
 type LandingHeaderProps = {
   user: AuthUser | null;
-  onSignupClick: () => void;
-  onLogoutClick: () => void;
+  onAuthClick: () => void;
+  onDashboardClick: () => void;
+  onContactClick: () => void;
 };
 
 const navItems = [
   "Home",
-  "Courses",
-  "Live Sessions",
-  "Teachers",
+  // "Courses",
+  // "Live Sessions",
+  // "Teachers",
   "About",
   "Contact",
 ];
 
 export function LandingHeader({
   user,
-  onSignupClick,
-  onLogoutClick,
+  onAuthClick,
+  onDashboardClick,
+  onContactClick,
 }: LandingHeaderProps) {
+  const [isScrolled, setIsScrolled] = useState(false);
   const [language, setLanguage] = useState<"en" | "bn">("en");
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const languageRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -50,15 +55,6 @@ export function LandingHeader({
     return () => window.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  const initials =
-    user?.avatarSeed ||
-    user?.fullName
-      .split(" ")
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join("") ||
-    "ML";
-
   const languages = [
     { id: "en", label: "English", icon: "🇬🇧" },
     { id: "bn", label: "Bangla", icon: "🇧🇩" },
@@ -68,7 +64,13 @@ export function LandingHeader({
     languages.find((item) => item.id === language) ?? languages[0];
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/30 bg-white/35 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.38)] backdrop-blur-2xl">
+    <header
+      className={`sticky top-0 z-30 border-b shadow-[0_10px_24px_-18px_rgba(15,23,42,0.38)] backdrop-blur-2xl transition-colors duration-300 ${
+        isScrolled
+          ? "border-slate-200/75 bg-white/95"
+          : "border-white/30 bg-white/35"
+      }`}
+    >
       <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Logo />
 
@@ -77,9 +79,16 @@ export function LandingHeader({
             <a
               key={item}
               href="#"
-              className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
+              onClick={(event) => {
+                if (item === "Contact") {
+                  event.preventDefault();
+                  onContactClick();
+                }
+              }}
+              className="group relative text-base font-medium text-slate-700 transition hover:text-slate-950"
             >
               {item}
+              <span className="pointer-events-none absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 rounded bg-sky-500 transition-transform duration-300 ease-out group-hover:scale-x-100" />
             </a>
           ))}
         </nav>
@@ -134,56 +143,29 @@ export function LandingHeader({
           </div>
 
           {user ? (
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                aria-label="Notifications"
-              >
-                <BellIcon className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-              </button>
-
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(180deg,#f1d1c0,#c98b73)] text-sm font-bold text-white shadow-sm">
-                  {initials}
-                </span>
-                <div className="hidden xl:block">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {user.fullName}
-                  </p>
-                  <p className="text-xs text-slate-500">Student</p>
-                </div>
-              </div>
-
-              <Button variant="secondary" size="sm" onClick={onLogoutClick}>
-                Logout
-              </Button>
-            </div>
+            <Button size="sm" onClick={onDashboardClick}>
+              Dashboard
+            </Button>
           ) : (
-            <Button size="sm" onClick={onSignupClick}>
-              Sign Up
+            <Button size="sm" onClick={onAuthClick}>
+              Login
             </Button>
           )}
         </div>
 
         <div className="ml-auto flex items-center gap-2 md:hidden">
-          {!user ? (
-            <Button size="sm" onClick={onSignupClick}>
-              Sign Up
+          {user ? (
+            <Button size="sm" onClick={onDashboardClick}>
+              Dashboard
             </Button>
           ) : (
-            <button
-              type="button"
-              onClick={onLogoutClick}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(180deg,#f1d1c0,#c98b73)] text-sm font-bold text-white"
-              aria-label="Logout"
-            >
-              {initials}
-            </button>
+            <Button size="sm" onClick={onAuthClick}>
+              Login
+            </Button>
           )}
         </div>
       </div>
+
     </header>
   );
 }
