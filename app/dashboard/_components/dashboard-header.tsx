@@ -8,7 +8,7 @@ import { NotificationDropdown } from "@/app/dashboard/_components/notification-d
 import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
 import { Button } from "@/app/components/ui/button";
 import type { AuthUser, UserRole } from "@/lib/mock-auth";
-import { setCurrentUser } from "@/lib/mock-auth";
+import { useAuth } from "@/lib/use-auth";
 
 type DashboardHeaderProps = {
   user: AuthUser;
@@ -31,6 +31,7 @@ export function DashboardHeader({
   onLogout,
 }: DashboardHeaderProps) {
   const router = useRouter();
+  const auth = useAuth();
   const [roleQuery] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -64,7 +65,7 @@ export function DashboardHeader({
   );
   const hasRealUser = user.id !== "preview-user";
   const userName = hasRealUser ? user.fullName : "User";
-  const userId = hasRealUser ? user.id.slice(0, 8).toUpperCase() : "N/A";
+  const userId = hasRealUser ? (user.readableId?.trim() || "N/A") : "N/A";
   const avatarDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(
     `<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72'><rect width='100%' height='100%' fill='#dbeafe'/><text x='50%' y='53%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='28' fill='#1e3a8a' font-weight='700'>${initials}</text></svg>`
   )}`;
@@ -129,22 +130,22 @@ export function DashboardHeader({
           <div className="leading-tight">
             <h1
               className={`text-sm font-semibold transition-colors ${
-                isScrolled ? "text-white" : "text-slate-900 dark:text-slate-100"
+                isScrolled ? "text-slate-900 dark:text-slate-100" : "text-slate-900 dark:text-slate-100"
               }`}
             >
-              Welcome ({userName})
+              Welcome {userName}
             </h1>
             <div className="mt-0.5 flex items-center gap-4">
               <p
                 className={`text-xs transition-colors ${
-                  isScrolled ? "text-slate-100" : "text-slate-500 dark:text-slate-400"
+                  isScrolled ? "text-slate-500 dark:text-slate-400" : "text-slate-500 dark:text-slate-400"
                 }`}
               >
                 Role: {role}
               </p>
               <p
                 className={`text-xs transition-colors ${
-                  isScrolled ? "text-slate-100" : "text-slate-500 dark:text-slate-400"
+                  isScrolled ? "text-slate-500 dark:text-slate-400" : "text-slate-500 dark:text-slate-400"
                 }`}
               >
                 ID: {userId}
@@ -235,7 +236,7 @@ export function DashboardHeader({
               onClick={() => setIsProfileOpen((state) => !state)}
               className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1.5 py-1 transition hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
             >
-              <div className="relative">
+              <div className="relative shrink-0">
                 {hasRealUser ? (
                   <Image
                     src={avatarDataUri}
@@ -243,10 +244,10 @@ export function DashboardHeader({
                     width={36}
                     height={36}
                     unoptimized
-                    className="h-9 w-9 rounded-full border border-slate-200 object-cover"
+                    className="h-9 w-9 shrink-0 rounded-full border border-slate-200 object-cover"
                   />
                 ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-linear-to-br from-emerald-100 to-sky-100 text-xs font-semibold text-slate-700 dark:from-slate-600 dark:to-slate-500 dark:text-white">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-emerald-100 to-sky-100 text-xs font-semibold text-slate-700 dark:from-slate-600 dark:to-slate-500 dark:text-white">
                     {initials}
                   </div>
                 )}
@@ -258,7 +259,7 @@ export function DashboardHeader({
             {isProfileOpen ? (
               <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
                 <div className="flex items-center gap-3 bg-brand-primary px-4 py-3 text-white">
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     {hasRealUser ? (
                       <Image
                         src={avatarDataUri}
@@ -266,18 +267,23 @@ export function DashboardHeader({
                         width={48}
                         height={48}
                         unoptimized
-                        className="h-12 w-12 rounded-full border-2 border-white/70 object-cover"
+                        className="h-12 w-12 shrink-0 rounded-full border-2 border-white/70 object-cover"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-lg font-semibold text-slate-700">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 text-lg font-semibold text-slate-700">
                         {initials}
                       </div>
                     )}
                     <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#184f51] bg-emerald-400" />
                   </div>
-                  <div>
-                    <p className="text-lg font-semibold">{userName}</p>
-                    <p className="text-xs text-slate-200">{hasRealUser ? role : "—"}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-semibold">{userName}</p>
+                    <p
+                      className="truncate text-sm text-slate-200"
+                      title={hasRealUser ? user.email : "—"}
+                    >
+                      {hasRealUser ? user.email : "—"}
+                    </p>
                   </div>
                 </div>
                 <div className="px-2 py-1.5">
@@ -307,8 +313,8 @@ export function DashboardHeader({
                 <div className="border-t border-slate-200 px-2 py-1.5 dark:border-slate-700">
                 <button
                   type="button"
-                  onClick={() => {
-                    setCurrentUser(null);
+                  onClick={async () => {
+                    await auth.logout();
                     onLogout();
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-sky-50 dark:hover:bg-slate-700"

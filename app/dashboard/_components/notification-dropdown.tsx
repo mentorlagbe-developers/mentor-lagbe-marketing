@@ -31,7 +31,7 @@ const recentItems = [
 
 export function NotificationDropdown() {
   return (
-    <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-[min(92vw,340px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_40px_-26px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900">
+    <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-[min(94vw,420px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_40px_-26px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between border-b border-slate-200 px-3.5 py-2.5 dark:border-slate-700">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notifications</h3>

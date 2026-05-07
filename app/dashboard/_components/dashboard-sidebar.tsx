@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { CircleHelp, Settings } from "lucide-react";
 import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
@@ -16,11 +15,6 @@ type DashboardSidebarProps = {
 
 export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const roleQuery = useSyncExternalStore(
-    () => () => undefined,
-    () => new URLSearchParams(window.location.search).get("role"),
-    () => null
-  );
   const menus = getDashboardMenuByRole(role);
   const primaryMenus = menus.filter((item) => item.id !== "help-center" && item.id !== "platform-settings");
   const supportMenus = menus.filter((item) => item.id === "help-center" || item.id === "platform-settings");
@@ -59,7 +53,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
           return (
             <Link
               key={menu.id}
-              href={roleQuery ? `${menu.href}?role=${roleQuery}` : menu.href}
+              href={menu.href}
               className={cn(
                 "group flex rounded-xl border px-3 py-2 transition",
                 active
@@ -93,7 +87,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
           {!collapsed ? (
             <>
               <Link
-                href={helpCenter ? (roleQuery ? `${helpCenter.href}?role=${roleQuery}` : helpCenter.href) : "#"}
+                href={helpCenter ? helpCenter.href : "#"}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-slate-200/90 transition hover:border-white/15 hover:bg-white/10 hover:text-white",
                   helpActive ? "border-cyan-300/40 bg-white/13 text-white" : "border-transparent"
@@ -106,7 +100,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
               </Link>
               {settingsMenu ? (
                 <Link
-                href={roleQuery ? `${settingsMenu.href}?role=${roleQuery}` : settingsMenu.href}
+                href={settingsMenu.href}
                 className={cn(
                   "flex items-center gap-2.5 rounded-xl border px-3 py-2 text-slate-200/90 transition hover:border-white/15 hover:bg-white/10 hover:text-white",
                   settingsActive ? "border-cyan-300/40 bg-white/13 text-white" : "border-transparent"
@@ -124,14 +118,14 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
           ) : (
             <>
               <Link
-                href={helpCenter ? (roleQuery ? `${helpCenter.href}?role=${roleQuery}` : helpCenter.href) : "#"}
+                href={helpCenter ? helpCenter.href : "#"}
                 className="flex w-full items-center justify-center rounded-xl bg-white/10 p-2.5 transition hover:bg-white/20"
               >
                 <CircleHelp className="h-4 w-4" />
               </Link>
               {settingsMenu ? (
                 <Link
-                href={roleQuery ? `${settingsMenu.href}?role=${roleQuery}` : settingsMenu.href}
+                href={settingsMenu.href}
                 className="flex w-full items-center justify-center rounded-xl bg-white/10 p-2.5 transition hover:bg-white/20"
               >
                 <Settings className="h-4 w-4" />
