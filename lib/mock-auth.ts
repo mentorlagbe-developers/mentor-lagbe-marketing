@@ -1,4 +1,5 @@
 export type Gender = "male" | "female" | "other";
+export type UserRole = "student" | "teacher" | "admin" | "superadmin";
 
 type StoredUser = {
   id: string;
@@ -11,6 +12,7 @@ type StoredUser = {
   verifiedAt: string;
   createdAt: string;
   avatarSeed: string;
+  role: UserRole;
 };
 
 export type AuthUser = Omit<StoredUser, "password">;
@@ -20,6 +22,7 @@ type RegisterPayload = {
   email: string;
   phone: string;
   password: string;
+  role?: UserRole;
 };
 
 const USERS_KEY = "mentorlagbe-users";
@@ -30,6 +33,20 @@ let cachedCurrentUserSnapshot: AuthUser | null = null;
 
 function hasWindow() {
   return typeof window !== "undefined";
+}
+
+function inferRoleFromEmail(email: string): UserRole {
+  const normalized = email.toLowerCase();
+  if (normalized.includes("superadmin")) {
+    return "superadmin";
+  }
+  if (normalized.includes("admin")) {
+    return "admin";
+  }
+  if (normalized.includes("teacher")) {
+    return "teacher";
+  }
+  return "student";
 }
 
 function stripPassword(user: StoredUser): AuthUser {
@@ -74,6 +91,12 @@ function readUsers(): StoredUser[] {
       verifiedAt: user.verifiedAt ?? new Date().toISOString(),
       createdAt: user.createdAt ?? new Date().toISOString(),
       avatarSeed: user.avatarSeed ?? "ML",
+      role:
+        user.role === "teacher" ||
+        user.role === "admin" ||
+        user.role === "superadmin"
+          ? user.role
+          : "student",
     }));
   } catch {
     return [];
@@ -118,6 +141,7 @@ export function ensureDemoUser() {
     verifiedAt: now,
     createdAt: now,
     avatarSeed: "DS",
+    role: "student",
   });
 
   writeUsers(users);
@@ -199,6 +223,7 @@ export function registerUser(payload: RegisterPayload): AuthUser {
       .slice(0, 2)
       .map((part) => part.charAt(0).toUpperCase())
       .join(""),
+    role: payload.role ?? inferRoleFromEmail(normalizedEmail),
   };
 
   writeUsers([...users, nextUser]);

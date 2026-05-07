@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ArrowRight, BadgeCheck, Clock, Crown, UserRound } from "lucide-react";
+import { ArrowRight, BadgeCheck, Clock, UserRound, Video } from "lucide-react";
 import { BadgePill } from "@/app/components/ui/badge-pill";
 import { Button } from "@/app/components/ui/button";
 import { FeaturePoint } from "@/app/components/ui/feature-point";
@@ -55,14 +55,14 @@ export function LiveSupportSection({ onCtaClick }: LiveSupportSectionProps) {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-white py-16 sm:py-20 lg:py-24"
+      className="relative overflow-hidden bg-white py-8 sm:py-6 lg:py-8"
     >
       {/* Subtle background gradient */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(186,230,255,0.18),transparent)]" />
 
       {/* Premium Service badge — centered above the two-column grid */}
       <div className={`mb-10 flex justify-center px-4 scroll-reveal ${isVisible ? "is-visible" : ""}`}>
-        <BadgePill icon={Crown} variant="sky">
+        <BadgePill icon={Video} variant="sky">
           One-to-One Mentorship
         </BadgePill>
       </div>
@@ -80,7 +80,7 @@ export function LiveSupportSection({ onCtaClick }: LiveSupportSectionProps) {
           </div>
 
           {/* Image */}
-          <div className="relative w-full max-w-lg pt-6">
+          <div className="relative w-full max-w-lg pt-2">
             <Image
               src="/images/live-img.svg"
               alt="Mentor and student in a live learning session"

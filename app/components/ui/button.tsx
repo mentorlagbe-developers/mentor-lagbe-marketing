@@ -13,7 +13,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses = {
   primary:
-    "bg-sky-500 text-white shadow-xl shadow-sky-500/30 hover:bg-sky-600 hover:shadow-sky-600/40 hover:-translate-y-0.5 active:translate-y-0",
+    "bg-brand-primary text-white shadow-xl shadow-brand-primary/30 hover:bg-brand-secondary hover:shadow-brand-secondary/40 hover:-translate-y-0.5 active:translate-y-0",
   secondary:
     "border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-sky-200 hover:text-sky-600 hover:shadow-md",
   ghost: 

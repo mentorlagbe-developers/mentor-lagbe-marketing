@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { AuthModal } from "@/app/components/ui/auth-modal";
 import { ContactModal } from "@/app/components/ui/contact-modal";
 import type { AuthUser } from "@/lib/mock-auth";
@@ -19,6 +20,7 @@ import Footer from "@/app/components/ui/Footer";
 type AuthEntryView = "login" | "register";
 
 export function LandingPageShell() {
+  const router = useRouter();
   const [authView, setAuthView] = useState<AuthEntryView>("login");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -39,17 +41,18 @@ export function LandingPageShell() {
         <LandingHeader
           user={user}
           onAuthClick={() => openAuth("login")}
-          onDashboardClick={() => {}}
+          onDashboardClick={() => router.push("/dashboard")}
           onContactClick={() => setIsContactModalOpen(true)}
         />
 
         <main>
+        <LiveSupportSection onCtaClick={() => openAuth("register")} />
+
           <HeroSection
             user={user}
-            onPrimaryAction={() => openAuth(user ? "login" : "register")}
+            onPrimaryAction={() => (user ? router.push("/dashboard") : openAuth("register"))}
           />
 
-          <LiveSupportSection onCtaClick={() => openAuth("register")} />
           <ConfusionClaritySection />
           <TopicExpertGridSection />
           <HowItWorksSection />

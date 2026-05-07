@@ -1,0 +1,142 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname, useSearchParams } from "next/navigation";
+import { CircleHelp, Settings } from "lucide-react";
+import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
+import { cn } from "@/lib/utils";
+import type { UserRole } from "@/lib/mock-auth";
+
+type DashboardSidebarProps = {
+  role: UserRole;
+  collapsed: boolean;
+};
+
+export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const menus = getDashboardMenuByRole(role);
+  const roleQuery = searchParams.get("role");
+  const primaryMenus = menus.filter((item) => item.id !== "help-center" && item.id !== "platform-settings");
+  const supportMenus = menus.filter((item) => item.id === "help-center" || item.id === "platform-settings");
+  const widthClass = collapsed ? "w-22" : "w-65";
+  const panelClass = "bg-linear-to-b from-sky-900 via-blue-900 to-cyan-900";
+  const helpCenter = supportMenus.find((item) => item.id === "help-center");
+  const settingsMenu = supportMenus.find((item) => item.id === "platform-settings");
+  const helpActive = Boolean(helpCenter && pathname === helpCenter.href);
+  const settingsActive = Boolean(settingsMenu && pathname === settingsMenu.href);
+
+  return (
+    <aside className={cn("sticky top-0 h-screen border-r border-slate-700 p-4 text-slate-100 transition-all duration-300", widthClass, panelClass)}>
+      {!collapsed ? (
+        <div className="mb-4 flex justify-center">
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white p-1.5 shadow-sm">
+            <Image src="/images/logo-3.png" alt="Mentor Lagbe logo" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
+          </div>
+        </div>
+      ) : null}
+
+      {!collapsed ? (
+        <div className="mb-6 space-y-1">
+          <p className="text-xs uppercase tracking-[0.22em] text-sky-200/70">Portal</p>
+          <h2 className="text-lg font-semibold capitalize">{role} Dashboard</h2>
+        </div>
+      ) : null}
+
+      <p className={cn("mb-3 text-xs uppercase tracking-[0.2em] text-sky-200/70", collapsed && "text-center")}>
+        Menu
+      </p>
+      <nav className="space-y-2">
+        {primaryMenus.map((menu) => {
+          const Icon = menu.icon;
+          const active = pathname === menu.href;
+
+          return (
+            <Link
+              key={menu.id}
+              href={roleQuery ? `${menu.href}?role=${roleQuery}` : menu.href}
+              className={cn(
+                "group flex rounded-xl border px-3 py-2 transition",
+                active
+                  ? "border-cyan-300/40 bg-white/13 text-white"
+                  : "border-transparent text-slate-200/85 hover:border-white/15 hover:bg-white/10 hover:text-white",
+                collapsed ? "justify-center" : "items-center gap-2.5"
+              )}
+              title={collapsed ? menu.label : undefined}
+            >
+              <span
+                className={cn(
+                  "rounded-lg p-1.5 transition",
+                  active ? "bg-cyan-400/20 text-cyan-100" : "bg-white/10 text-sky-100"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+              {!collapsed ? (
+                <span className="min-w-0 text-sm font-semibold">{menu.label}</span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-8">
+        <p className={cn("mb-3 text-xs uppercase tracking-[0.2em] text-sky-200/70", collapsed && "text-center text-[10px]")}>
+          Support
+        </p>
+        <div className="space-y-2">
+          {!collapsed ? (
+            <>
+              <Link
+                href={helpCenter ? (roleQuery ? `${helpCenter.href}?role=${roleQuery}` : helpCenter.href) : "#"}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-slate-200/90 transition hover:border-white/15 hover:bg-white/10 hover:text-white",
+                  helpActive ? "border-cyan-300/40 bg-white/13 text-white" : "border-transparent"
+                )}
+              >
+                <span className="rounded-lg bg-white/10 p-1.5">
+                  <CircleHelp className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold">Help Center</span>
+              </Link>
+              {settingsMenu ? (
+                <Link
+                href={roleQuery ? `${settingsMenu.href}?role=${roleQuery}` : settingsMenu.href}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-xl border px-3 py-2 text-slate-200/90 transition hover:border-white/15 hover:bg-white/10 hover:text-white",
+                  settingsActive ? "border-cyan-300/40 bg-white/13 text-white" : "border-transparent"
+                )}
+              >
+                <span className="rounded-lg bg-white/10 p-1.5">
+                  <Settings className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold">
+                  {settingsMenu.label}
+                </span>
+              </Link>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Link
+                href={helpCenter ? (roleQuery ? `${helpCenter.href}?role=${roleQuery}` : helpCenter.href) : "#"}
+                className="flex w-full items-center justify-center rounded-xl bg-white/10 p-2.5 transition hover:bg-white/20"
+              >
+                <CircleHelp className="h-4 w-4" />
+              </Link>
+              {settingsMenu ? (
+                <Link
+                href={roleQuery ? `${settingsMenu.href}?role=${roleQuery}` : settingsMenu.href}
+                className="flex w-full items-center justify-center rounded-xl bg-white/10 p-2.5 transition hover:bg-white/20"
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
