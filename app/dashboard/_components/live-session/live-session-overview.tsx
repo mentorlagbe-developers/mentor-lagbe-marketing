@@ -3,6 +3,7 @@
 import { CalendarClock, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Button } from "@/app/components/ui/button";
 import { Modal } from "@/app/components/ui/modal";
@@ -22,6 +23,7 @@ const upcomingLiveSessions = [
 
 export function LiveSessionOverview() {
   const router = useRouter();
+  const { needsCompletionForLiveSession } = useProfileStatus();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"bkash" | "nagad">("bkash");
   const [trxId, setTrxId] = useState("");
@@ -47,8 +49,20 @@ export function LiveSessionOverview() {
   return (
     <section className="space-y-5">
       <div className="flex items-center justify-end">
-        <Button onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}>Book Session</Button>
+        <Button
+          disabled={needsCompletionForLiveSession}
+          onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
+          className="disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Book Session
+        </Button>
       </div>
+
+      {needsCompletionForLiveSession ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
+          Live Session access is locked until you complete required profile details.
+        </div>
+      ) : null}
 
       <StudentQuickStats items={liveSessionStats} />
 
@@ -106,7 +120,10 @@ export function LiveSessionOverview() {
                     {session.time}
                   </p>
                 </div>
-                <button className="inline-flex items-center gap-1 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-secondary">
+                <button
+                  disabled={needsCompletionForLiveSession}
+                  className="inline-flex items-center gap-1 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                >
                   <Video className="h-3.5 w-3.5" />
                   Join Live
                 </button>

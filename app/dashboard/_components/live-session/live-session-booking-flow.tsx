@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, Clock3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
+import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
 import { apiFetch } from "@/lib/api";
 
 const hourOptions = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -82,6 +83,7 @@ function normalizeOption(record: Record<string, unknown>, fallbackPrefix: string
 
 export function LiveSessionBookingFlow() {
   const router = useRouter();
+  const { needsCompletionForLiveSession } = useProfileStatus();
   function withRoleQuery(path: string) {
     if (typeof window === "undefined") {
       return path;
@@ -318,6 +320,19 @@ export function LiveSessionBookingFlow() {
 
   return (
     <section className="space-y-4">
+      {needsCompletionForLiveSession ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
+          Please complete your profile before booking a Live Session.
+          <div className="mt-3">
+            <Button size="sm" onClick={() => router.push(withRoleQuery("/dashboard/profile"))}>
+              Go to Profile
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {needsCompletionForLiveSession ? null : (
+        <>
       <Button variant="secondary" iconLeft={ArrowLeft} onClick={backToOverview}>
         Back to Live Session Page
       </Button>
@@ -659,6 +674,8 @@ export function LiveSessionBookingFlow() {
           )}
         </div>
       </div>
+      </>
+      )}
     </section>
   );
 }

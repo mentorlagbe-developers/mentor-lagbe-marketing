@@ -1,6 +1,8 @@
 import { getDashboardMenuByRole, type DashboardSectionKey } from "@/app/dashboard/dashboard-menu";
 import { LiveSessionBookingFlow } from "@/app/dashboard/_components/live-session/live-session-booking-flow";
 import { LiveSessionOverview } from "@/app/dashboard/_components/live-session/live-session-overview";
+import { MentorRegistrationPanel } from "@/app/dashboard/_components/admin/mentor-registration-panel";
+import { ProfileSection } from "@/app/dashboard/_components/profile/profile-section";
 import { StudentDashboardOverview } from "@/app/dashboard/_components/student/student-dashboard-overview";
 import type { UserRole } from "@/lib/mock-auth";
 
@@ -22,6 +24,10 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
     return <LiveSessionBookingFlow />;
   }
 
+  if (section === "profile") {
+    return <ProfileSection role={role} />;
+  }
+
   const sectionMeta = getDashboardMenuByRole(role).find((item) => item.id === section);
   if (!sectionMeta) {
     return null;
@@ -29,6 +35,8 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
 
   return (
     <section className="space-y-5">
+      {(role === "admin" || role === "superadmin") && section === "user-management" ? <MentorRegistrationPanel /> : null}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <p className="text-xs uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Current Workspace</p>
         <h2 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{sectionMeta.label}</h2>

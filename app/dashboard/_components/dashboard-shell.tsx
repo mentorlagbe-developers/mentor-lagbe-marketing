@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/app/dashboard/_components/dashboard-header";
 import { DashboardFooter } from "@/app/dashboard/_components/dashboard-footer";
 import { DashboardSidebar } from "@/app/dashboard/_components/dashboard-sidebar";
+import { ProfileCompletionBanner } from "@/app/dashboard/_components/profile/profile-completion-banner";
+import { ProfileStatusProvider } from "@/app/dashboard/_components/profile-status-context";
 import { WhatsAppChatWidget } from "@/app/dashboard/_components/whatsapp-chat-widget";
 import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import type { AuthUser } from "@/lib/mock-auth";
@@ -32,15 +34,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
     <div className="flex min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       <DashboardSidebar role={activeRole} collapsed={isSidebarCollapsed} />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <DashboardHeader
-          role={activeRole}
-          user={user}
-          collapsed={isSidebarCollapsed}
-          onToggleSidebar={() => setIsSidebarCollapsed((state) => !state)}
-          onLogout={() => router.push("/?auth=login")}
-        />
-        <main className="flex-1 p-6">{children}</main>
-        <DashboardFooter />
+        <ProfileStatusProvider role={activeRole}>
+          <DashboardHeader
+            role={activeRole}
+            user={user}
+            collapsed={isSidebarCollapsed}
+            onToggleSidebar={() => setIsSidebarCollapsed((state) => !state)}
+            onLogout={() => router.push("/?auth=login")}
+          />
+          <ProfileCompletionBanner />
+          <main className="flex-1 p-6">{children}</main>
+          <DashboardFooter />
+        </ProfileStatusProvider>
       </div>
       <WhatsAppChatWidget />
     </div>

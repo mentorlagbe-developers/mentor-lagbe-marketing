@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   Settings,
   ShieldCheck,
+  UserCircle2,
   Users,
   Video,
   Wallet,
@@ -21,6 +22,7 @@ export type DashboardSectionKey =
   | "live-session"
   | "live-session-book"
   | "bookings"
+  | "profile"
   | "payments"
   | "my-students"
   | "session-requests"
@@ -64,6 +66,12 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
     label: "Bookings",
     href: "/dashboard/bookings",
     icon: CalendarDays,
+  },
+  profile: {
+    id: "profile",
+    label: "Profile",
+    href: "/dashboard/profile",
+    icon: UserCircle2,
   },
   payments: {
     id: "payments",
@@ -153,7 +161,7 @@ export function getDashboardMenuByRole(role: UserRole) {
 }
 
 export function isRoleAllowedForSection(role: UserRole, section: string) {
-  if (section === "live-session-book") {
+  if (section === "live-session-book" || section === "profile") {
     return true;
   }
   return roleMenuKeys[role].includes(section as DashboardSectionKey);

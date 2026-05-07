@@ -5,6 +5,7 @@ import { Bell, CalendarPlus2, ChevronDown, Globe, LogOut, Menu, MoonStar, Settin
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NotificationDropdown } from "@/app/dashboard/_components/notification-dropdown";
+import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
 import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
 import { Button } from "@/app/components/ui/button";
 import type { AuthUser, UserRole } from "@/lib/mock-auth";
@@ -32,6 +33,7 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const router = useRouter();
   const auth = useAuth();
+  const { needsCompletionForLiveSession } = useProfileStatus();
   const [roleQuery] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -112,7 +114,7 @@ export function DashboardHeader({
   const settingsHref = withRoleQuery(
     getDashboardMenuByRole(role).some((item) => item.id === "platform-settings")
       ? "/dashboard/platform-settings"
-      : "/dashboard/overview"
+      : "/dashboard/profile"
   );
 
   return (
@@ -158,7 +160,9 @@ export function DashboardHeader({
           <Button
             size="sm"
             iconLeft={CalendarPlus2}
+            disabled={needsCompletionForLiveSession}
             onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
+            className="disabled:cursor-not-allowed disabled:opacity-60"
           >
             Book Live Session
           </Button>
@@ -289,6 +293,7 @@ export function DashboardHeader({
                 <div className="px-2 py-1.5">
                 <button
                   type="button"
+                  onClick={() => router.push(withRoleQuery("/dashboard/profile"))}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 hover:text-brand-primary dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   <UserCircle2 className="h-4 w-4" />
