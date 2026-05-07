@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, ChevronDown, Globe, LogOut, Menu, MoonStar, Settings, Sun, UserCircle2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NotificationDropdown } from "@/app/dashboard/_components/notification-dropdown";
 import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
@@ -30,7 +30,13 @@ export function DashboardHeader({
   onLogout,
 }: DashboardHeaderProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [roleQuery] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const query = new URLSearchParams(window.location.search);
+    return query.get("role");
+  });
   const [language, setLanguage] = useState<(typeof languages)[number]["id"]>("en");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") {
@@ -93,7 +99,6 @@ export function DashboardHeader({
   }, []);
 
   function withRoleQuery(path: string) {
-    const roleQuery = searchParams.get("role");
     return roleQuery ? `${path}?role=${roleQuery}` : path;
   }
 

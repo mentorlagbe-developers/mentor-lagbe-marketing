@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/app/dashboard/_components/dashboard-header";
 import { DashboardFooter } from "@/app/dashboard/_components/dashboard-footer";
 import { DashboardSidebar } from "@/app/dashboard/_components/dashboard-sidebar";
@@ -26,9 +26,16 @@ function resolvePreviewRole(role: string | null): UserRole {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
-  const previewRole = resolvePreviewRole(searchParams.get("role"));
+  const [roleQuery] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const query = new URLSearchParams(window.location.search);
+    return query.get("role");
+  });
+
+  const previewRole = resolvePreviewRole(roleQuery);
   const activeRole = user ? resolveRole(user) : previewRole;
 
   // Temporary auth guard disabled for dashboard UI design preview.

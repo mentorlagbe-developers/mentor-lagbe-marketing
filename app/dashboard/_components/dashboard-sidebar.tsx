@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { CircleHelp, Settings } from "lucide-react";
 import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
 import { cn } from "@/lib/utils";
@@ -15,9 +16,14 @@ type DashboardSidebarProps = {
 
 export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [roleQuery] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const query = new URLSearchParams(window.location.search);
+    return query.get("role");
+  });
   const menus = getDashboardMenuByRole(role);
-  const roleQuery = searchParams.get("role");
   const primaryMenus = menus.filter((item) => item.id !== "help-center" && item.id !== "platform-settings");
   const supportMenus = menus.filter((item) => item.id === "help-center" || item.id === "platform-settings");
   const widthClass = collapsed ? "w-22" : "w-65";

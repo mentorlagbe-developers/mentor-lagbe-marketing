@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { DashboardSectionContent } from "@/app/dashboard/_components/dashboard-section-content";
 import {
   getDefaultSectionForRole,
@@ -24,10 +24,16 @@ function resolvePreviewRole(role: string | null): UserRole {
 
 export default function DashboardSectionPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const params = useParams<{ section: string }>();
+  const [roleQuery] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const query = new URLSearchParams(window.location.search);
+    return query.get("role");
+  });
   const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
-  const role = user ? resolveRole(user) : resolvePreviewRole(searchParams.get("role"));
+  const role = user ? resolveRole(user) : resolvePreviewRole(roleQuery);
   const section = params.section;
 
   const isAllowed = useMemo(() => isRoleAllowedForSection(role, section), [role, section]);
