@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { CircleHelp, Settings } from "lucide-react";
 import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
@@ -16,13 +16,11 @@ type DashboardSidebarProps = {
 
 export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const [roleQuery] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    const query = new URLSearchParams(window.location.search);
-    return query.get("role");
-  });
+  const roleQuery = useSyncExternalStore(
+    () => () => undefined,
+    () => new URLSearchParams(window.location.search).get("role"),
+    () => null
+  );
   const menus = getDashboardMenuByRole(role);
   const primaryMenus = menus.filter((item) => item.id !== "help-center" && item.id !== "platform-settings");
   const supportMenus = menus.filter((item) => item.id === "help-center" || item.id === "platform-settings");

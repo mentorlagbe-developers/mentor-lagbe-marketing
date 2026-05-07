@@ -1,4 +1,5 @@
 import { getDashboardMenuByRole, type DashboardSectionKey } from "@/app/dashboard/dashboard-menu";
+import { LiveSessionBookingFlow } from "@/app/dashboard/_components/live-session/live-session-booking-flow";
 import { LiveSessionOverview } from "@/app/dashboard/_components/live-session/live-session-overview";
 import { StudentDashboardOverview } from "@/app/dashboard/_components/student/student-dashboard-overview";
 import type { UserRole } from "@/lib/mock-auth";
@@ -9,18 +10,21 @@ type DashboardSectionContentProps = {
 };
 
 export function DashboardSectionContent({ section, role }: DashboardSectionContentProps) {
-  const sectionMeta = getDashboardMenuByRole(role).find((item) => item.id === section);
-
-  if (!sectionMeta) {
-    return null;
-  }
-
   if (role === "student" && section === "dashboard") {
     return <StudentDashboardOverview />;
   }
 
   if (section === "live-session") {
     return <LiveSessionOverview />;
+  }
+
+  if (section === "live-session-book") {
+    return <LiveSessionBookingFlow />;
+  }
+
+  const sectionMeta = getDashboardMenuByRole(role).find((item) => item.id === section);
+  if (!sectionMeta) {
+    return null;
   }
 
   return (

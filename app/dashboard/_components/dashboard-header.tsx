@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, ChevronDown, Globe, LogOut, Menu, MoonStar, Settings, Sun, UserCircle2 } from "lucide-react";
+import { Bell, CalendarPlus2, ChevronDown, Globe, LogOut, Menu, MoonStar, Settings, Sun, UserCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NotificationDropdown } from "@/app/dashboard/_components/notification-dropdown";
 import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
+import { Button } from "@/app/components/ui/button";
 import type { AuthUser, UserRole } from "@/lib/mock-auth";
 import { setCurrentUser } from "@/lib/mock-auth";
 
@@ -153,6 +154,14 @@ export function DashboardHeader({
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            iconLeft={CalendarPlus2}
+            onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
+          >
+            Book Live Session
+          </Button>
+
           <button
             type="button"
             onClick={toggleTheme}

@@ -19,6 +19,7 @@ import type { UserRole } from "@/lib/mock-auth";
 export type DashboardSectionKey =
   | "dashboard"
   | "live-session"
+  | "live-session-book"
   | "bookings"
   | "payments"
   | "my-students"
@@ -50,6 +51,12 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
     id: "live-session",
     label: "Live Session",
     href: "/dashboard/live-session",
+    icon: Video,
+  },
+  "live-session-book": {
+    id: "live-session-book",
+    label: "Book Session",
+    href: "/dashboard/live-session-book",
     icon: Video,
   },
   bookings: {
@@ -146,6 +153,9 @@ export function getDashboardMenuByRole(role: UserRole) {
 }
 
 export function isRoleAllowedForSection(role: UserRole, section: string) {
+  if (section === "live-session-book") {
+    return true;
+  }
   return roleMenuKeys[role].includes(section as DashboardSectionKey);
 }
 

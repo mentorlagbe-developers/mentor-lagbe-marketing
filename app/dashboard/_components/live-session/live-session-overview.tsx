@@ -1,5 +1,9 @@
+"use client";
+
 import { CalendarClock, Video } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
+import { Button } from "@/app/components/ui/button";
 
 const liveSessionStats = [
   { label: "Total Live Sessions Taken", value: "42", trend: "Across this semester" },
@@ -15,8 +19,26 @@ const upcomingLiveSessions = [
 ];
 
 export function LiveSessionOverview() {
+  const router = useRouter();
+
+  function withRoleQuery(path: string) {
+    if (typeof window === "undefined") {
+      return path;
+    }
+    const query = new URLSearchParams(window.location.search);
+    const role = query.get("role");
+    if (!role) {
+      return path;
+    }
+    return `${path}${path.includes("?") ? "&" : "?"}role=${role}`;
+  }
+
   return (
     <section className="space-y-5">
+      <div className="flex items-center justify-end">
+        <Button onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}>Book Session</Button>
+      </div>
+
       <StudentQuickStats items={liveSessionStats} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
