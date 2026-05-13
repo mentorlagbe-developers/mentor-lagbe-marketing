@@ -81,6 +81,21 @@ button {
   }
 }
 
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.9);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .modal-overlay-animate {
   animation: overlay-fade-in 220ms ease-out;
 }

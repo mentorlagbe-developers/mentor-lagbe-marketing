@@ -20,12 +20,12 @@ export function ConfusionClaritySection({
   points = defaultPoints,
 }: ConfusionClaritySectionProps) {
   return (
-    <section className="bg-slate-50 py-16 sm:py-20">
+    <section className="bg-slate-50 py-12 transition-colors dark:bg-slate-900 sm:py-14">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-500">Mentor Lagbe</p>
-          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">{title}</h2>
-          <p className="mt-3 text-base text-slate-600 sm:text-lg">{subtitle}</p>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">{title}</h2>
+          <p className="mt-3 text-base text-slate-600 dark:text-slate-300 sm:text-lg">{subtitle}</p>
         </div>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
@@ -55,16 +55,16 @@ export function ConfusionClaritySection({
             </div>
           </article>
 
-          <article className="relative overflow-hidden rounded-3xl border border-sky-100 bg-white p-6 shadow-2xl shadow-sky-500/10">
+          <article className="relative overflow-hidden rounded-3xl border border-sky-100 bg-white p-6 shadow-2xl shadow-sky-500/10 dark:border-slate-700 dark:bg-slate-800">
             <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-200/40 blur-3xl" />
             <div className="relative">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-sky-600">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-sky-600 dark:border-slate-600 dark:bg-slate-700 dark:text-sky-300">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Clarity
               </div>
-              <div className="rounded-2xl border border-sky-100 bg-linear-to-br from-white to-sky-50 p-4">
+              <div className="rounded-2xl border border-sky-100 bg-linear-to-br from-white to-sky-50 p-4 dark:border-slate-700 dark:from-slate-800 dark:to-slate-800">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-900">Live 1-on-1 Session</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Live 1-on-1 Session</p>
                   <span className="rounded-full bg-sky-500 px-2 py-0.5 text-xs font-semibold text-white">Active</span>
                 </div>
                 <div className="mt-4 flex items-center gap-3">
@@ -72,14 +72,14 @@ export function ConfusionClaritySection({
                     <Video className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Mentor is guiding line-by-line</p>
-                    <p className="text-xs text-slate-500">Code fixed with clear explanation</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Mentor is guiding line-by-line</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">Code fixed with clear explanation</p>
                   </div>
                 </div>
               </div>
               <ul className="mt-4 space-y-2">
                 {points.map((point) => (
-                  <li key={point} className="flex items-start gap-2 text-sm text-slate-700">
+                  <li key={point} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 text-sky-500" />
                     <span>{point}</span>
                   </li>

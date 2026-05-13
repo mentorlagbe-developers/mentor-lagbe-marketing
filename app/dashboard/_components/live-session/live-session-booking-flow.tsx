@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2, Clock3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 const hourOptions = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const minuteOptions = [0, 15, 30, 45];
@@ -13,7 +13,7 @@ const PRICE_PER_30_MIN = 100;
 const TOPIC_OTHER_VALUE = "__other__";
 
 type Meridiem = "AM" | "PM";
-type SelectOption = { id: string; label: string };
+type SelectOption = { id: string; label: string; facultyId?: string };
 
 type BookingFormState = {
   departmentId: string;
@@ -78,7 +78,8 @@ function pickStringValue(record: Record<string, unknown>, keys: string[]) {
 function normalizeOption(record: Record<string, unknown>, fallbackPrefix: string, index: number): SelectOption {
   const id = pickStringValue(record, ["id", "uuid", "_id"]) || `${fallbackPrefix}-${index}`;
   const label = pickStringValue(record, ["label", "name", "title", "code"]) || "Unnamed";
-  return { id, label };
+  const facultyId = pickStringValue(record, ["facultyId", "faculty_id", "parentFacultyId", "parentFacultyId"]);
+  return { id, label, facultyId: facultyId || undefined };
 }
 
 export function LiveSessionBookingFlow() {
@@ -99,6 +100,8 @@ export function LiveSessionBookingFlow() {
   const [step, setStep] = useState(1);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState<BookingFormState>({
     departmentId: "",
     courseId: "",
@@ -295,8 +298,38 @@ export function LiveSessionBookingFlow() {
     setStep((current) => Math.min(current + 1, 3));
   }
 
-  function submitBooking() {
-    setSubmitted(true);
+  async function submitBooking() {
+    setSubmitError(null);
+    setIsSubmitting(true);
+    try {
+      const payload: Record<string, unknown> = {
+        departmentId: form.departmentId,
+        courseId: form.courseId,
+        topicId: form.topicId === TOPIC_OTHER_VALUE ? null : form.topicId || null,
+        customTopicName: form.topicId === TOPIC_OTHER_VALUE ? form.customTopic.trim() : undefined,
+        problemDescription: form.description.trim(),
+        sessionDate: form.sessionDate,
+        startTime: `${String(to24Hour(form.startHour, form.startMeridiem)).padStart(2, "0")}:${String(form.startMinute).padStart(2, "0")}`,
+        durationMinutes: form.sessionDuration,
+        priceBdt: price.toFixed(2),
+      };
+
+      await apiFetch<Record<string, unknown>>("/live-sessions/bookings", {
+        method: "POST",
+        auth: true,
+        body: JSON.stringify(payload),
+      });
+      setSubmitted(true);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const details = error.details?.map((item) => item.message).filter(Boolean).join(" ");
+        setSubmitError(details || error.message || "Failed to submit booking.");
+      } else {
+        setSubmitError(error instanceof Error ? error.message : "Failed to submit booking.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (submitted) {
@@ -668,11 +701,12 @@ export function LiveSessionBookingFlow() {
           {step < 3 ? (
             <Button onClick={nextStep}>Next</Button>
           ) : (
-            <Button iconLeft={CheckCircle2} onClick={submitBooking}>
-              Submit Booking Request
+            <Button iconLeft={CheckCircle2} onClick={() => void submitBooking()} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Booking Request"}
             </Button>
           )}
         </div>
+        {submitError ? <p className="mt-3 text-sm text-rose-500">{submitError}</p> : null}
       </div>
       </>
       )}

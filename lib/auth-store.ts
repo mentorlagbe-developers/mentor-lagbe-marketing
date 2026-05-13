@@ -8,6 +8,7 @@ export type AuthUser = {
   readableId?: string;
   fullName: string;
   email: string;
+  profilePictureUrl?: string;
   age: number;
   gender: Gender;
   phone: string;
@@ -108,6 +109,10 @@ export function mapApiUser(payload: Record<string, unknown>): AuthUser {
         : undefined,
     fullName,
     email: String(payload.email ?? ""),
+    profilePictureUrl:
+      typeof payload.profilePictureUrl === "string" && payload.profilePictureUrl.trim()
+        ? payload.profilePictureUrl.trim()
+        : "",
     age: Number(payload.age ?? 0),
     gender:
       payload.gender === "male" || payload.gender === "female" || payload.gender === "other"

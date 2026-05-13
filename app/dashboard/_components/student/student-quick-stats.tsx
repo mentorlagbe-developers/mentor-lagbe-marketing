@@ -1,4 +1,4 @@
-type StudentStatItem = {
+export type StudentStatItem = {
   label: string;
   value: string;
   trend: string;

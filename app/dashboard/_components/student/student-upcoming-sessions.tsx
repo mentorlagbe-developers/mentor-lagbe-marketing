@@ -1,5 +1,4 @@
 import { CalendarCheck2 } from "lucide-react";
-import { useState } from "react";
 
 type UpcomingSessionItem = {
   id: string;
@@ -20,13 +19,7 @@ type StudentUpcomingSessionsProps = {
 };
 
 export function StudentUpcomingSessions({ initialData = initialSessions }: StudentUpcomingSessionsProps) {
-  const [sessions, setSessions] = useState(initialData);
-
-  function markJoined(sessionId: string) {
-    setSessions((current) =>
-      current.map((item) => (item.id === sessionId ? { ...item, status: "joined" } : item))
-    );
-  }
+  const sessions = initialData;
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -54,7 +47,6 @@ export function StudentUpcomingSessions({ initialData = initialSessions }: Stude
               {item.status === "upcoming" ? (
                 <button
                   type="button"
-                  onClick={() => markJoined(item.id)}
                   className="inline-flex items-center gap-1 rounded-lg bg-brand-primary px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-secondary"
                 >
                   <CalendarCheck2 className="h-3.5 w-3.5" />

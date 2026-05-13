@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, CalendarPlus2, ChevronDown, Globe, LogOut, Menu, MoonStar, Settings, Sun, UserCircle2 } from "lucide-react";
+import { Bell, CalendarPlus2, ChevronDown, Globe, Lock, LogOut, Menu, MoonStar, Settings, Sun, UserCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NotificationDropdown } from "@/app/dashboard/_components/notification-dropdown";
 import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
-import { getDashboardMenuByRole } from "@/app/dashboard/dashboard-menu";
 import { Button } from "@/app/components/ui/button";
 import type { AuthUser, UserRole } from "@/lib/mock-auth";
 import { useAuth } from "@/lib/use-auth";
@@ -24,6 +23,14 @@ const languages = [
   { id: "bn", label: "Bangla", icon: "🇧🇩" },
 ] as const;
 
+const avatarPalette = [
+  "from-sky-500 to-blue-600",
+  "from-violet-500 to-fuchsia-600",
+  "from-emerald-500 to-teal-600",
+  "from-amber-500 to-orange-600",
+  "from-rose-500 to-pink-600",
+] as const;
+
 export function DashboardHeader({
   user,
   role,
@@ -33,7 +40,7 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const router = useRouter();
   const auth = useAuth();
-  const { needsCompletionForLiveSession } = useProfileStatus();
+  const { needsCompletionForLiveSession, profile } = useProfileStatus();
   const [roleQuery] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -68,9 +75,18 @@ export function DashboardHeader({
   const hasRealUser = user.id !== "preview-user";
   const userName = hasRealUser ? user.fullName : "User";
   const userId = hasRealUser ? (user.readableId?.trim() || "N/A") : "N/A";
-  const avatarDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72'><rect width='100%' height='100%' fill='#dbeafe'/><text x='50%' y='53%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='28' fill='#1e3a8a' font-weight='700'>${initials}</text></svg>`
-  )}`;
+  const avatarIndex = useMemo(
+    () =>
+      Array.from(user.fullName || "User").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
+      avatarPalette.length,
+    [user.fullName]
+  );
+  const avatarGradient = avatarPalette[avatarIndex];
+  const profileImageUrl =
+    hasRealUser &&
+    (profile?.profilePictureUrl?.trim() ||
+      user.profilePictureUrl?.trim() ||
+      null);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -111,11 +127,7 @@ export function DashboardHeader({
     setTheme(next);
   }
 
-  const settingsHref = withRoleQuery(
-    getDashboardMenuByRole(role).some((item) => item.id === "platform-settings")
-      ? "/dashboard/platform-settings"
-      : "/dashboard/profile"
-  );
+  const settingsHref = withRoleQuery("/dashboard/platform-settings");
 
   return (
     <>
@@ -242,14 +254,20 @@ export function DashboardHeader({
             >
               <div className="relative shrink-0">
                 {hasRealUser ? (
-                  <Image
-                    src={avatarDataUri}
-                    alt={userName}
-                    width={36}
-                    height={36}
-                    unoptimized
-                    className="h-9 w-9 shrink-0 rounded-full border border-slate-200 object-cover"
-                  />
+                  profileImageUrl ? (
+                    <Image
+                      src={profileImageUrl}
+                      alt={userName}
+                      width={36}
+                      height={36}
+                      unoptimized
+                      className="h-9 w-9 shrink-0 rounded-full border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br ${avatarGradient} text-sm font-semibold text-white`}>
+                      {initials.slice(0, 1)}
+                    </div>
+                  )
                 ) : (
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-emerald-100 to-sky-100 text-xs font-semibold text-slate-700 dark:from-slate-600 dark:to-slate-500 dark:text-white">
                     {initials}
@@ -265,14 +283,20 @@ export function DashboardHeader({
                 <div className="flex items-center gap-3 bg-brand-primary px-4 py-3 text-white">
                   <div className="relative shrink-0">
                     {hasRealUser ? (
-                      <Image
-                        src={avatarDataUri}
-                        alt={userName}
-                        width={48}
-                        height={48}
-                        unoptimized
-                        className="h-12 w-12 shrink-0 rounded-full border-2 border-white/70 object-cover"
-                      />
+                      profileImageUrl ? (
+                        <Image
+                          src={profileImageUrl}
+                          alt={userName}
+                          width={48}
+                          height={48}
+                          unoptimized
+                          className="h-12 w-12 shrink-0 rounded-full border-2 border-white/70 object-cover"
+                        />
+                      ) : (
+                        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-br ${avatarGradient} text-lg font-semibold text-white`}>
+                          {initials.slice(0, 1)}
+                        </div>
+                      )
                     ) : (
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 text-lg font-semibold text-slate-700">
                         {initials}
@@ -303,7 +327,7 @@ export function DashboardHeader({
                   type="button"
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 hover:text-brand-primary dark:text-slate-200 dark:hover:bg-slate-700"
                 >
-                  <Settings className="h-4 w-4" />
+                  <Lock className="h-4 w-4" />
                   Change Password
                 </button>
                 <button

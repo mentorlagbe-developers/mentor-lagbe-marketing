@@ -29,9 +29,9 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
     <aside className={cn("sticky top-0 h-screen border-r border-slate-700 p-4 text-slate-100 transition-all duration-300", widthClass, panelClass)}>
       {!collapsed ? (
         <div className="mb-4 flex justify-center">
-          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white p-1.5 shadow-sm">
+          <Link href="/" className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white p-1.5 shadow-sm transition hover:scale-[1.03]">
             <Image src="/images/logo-3.png" alt="Mentor Lagbe logo" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
-          </div>
+          </Link>
         </div>
       ) : null}
 

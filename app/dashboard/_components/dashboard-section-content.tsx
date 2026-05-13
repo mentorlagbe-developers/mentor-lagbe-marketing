@@ -2,7 +2,10 @@ import { getDashboardMenuByRole, type DashboardSectionKey } from "@/app/dashboar
 import { LiveSessionBookingFlow } from "@/app/dashboard/_components/live-session/live-session-booking-flow";
 import { LiveSessionOverview } from "@/app/dashboard/_components/live-session/live-session-overview";
 import { MentorRegistrationPanel } from "@/app/dashboard/_components/admin/mentor-registration-panel";
-import { ProfileSection } from "@/app/dashboard/_components/profile/profile-section";
+import { AdminSessionRequestsPanel } from "@/app/dashboard/_components/admin/admin-session-requests-panel";
+import { ProfileSection } from "./profile/profile-section";
+import { SettingsSection } from "@/app/dashboard/_components/settings/settings-section";
+import { BookingsSection } from "@/app/dashboard/_components/bookings/bookings-section";
 import { StudentDashboardOverview } from "@/app/dashboard/_components/student/student-dashboard-overview";
 import type { UserRole } from "@/lib/mock-auth";
 
@@ -26,6 +29,18 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
 
   if (section === "profile") {
     return <ProfileSection role={role} />;
+  }
+
+  if (section === "platform-settings") {
+    return <SettingsSection role={role} />;
+  }
+
+  if (section === "bookings") {
+    return <BookingsSection />;
+  }
+
+  if (role === "superadmin" && section === "admin-session-requests") {
+    return <AdminSessionRequestsPanel />;
   }
 
   const sectionMeta = getDashboardMenuByRole(role).find((item) => item.id === section);

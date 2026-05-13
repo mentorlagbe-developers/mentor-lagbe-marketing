@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/app/components/ui/button";
 import {
   CheckIcon,
@@ -105,21 +106,20 @@ function extractOtpForDevLog(payload: unknown): string | null {
 
 function HeroSidePanel() {
   return (
-    <div className="relative hidden w-[44%] overflow-hidden bg-[linear-gradient(180deg,#43b7ff,#2f9fe8)] text-white lg:block">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.16),transparent_24%)]" />
-      <div className="absolute -top-12 left-10 h-48 w-48 rounded-full bg-white/8 blur-2xl" />
-      <div className="absolute -bottom-8 -left-8 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
+    <div className="relative hidden min-h-[200px] w-full shrink-0 overflow-hidden bg-linear-to-br from-[#3b82f6] via-sky-400 to-cyan-300 text-white lg:flex lg:min-h-0 lg:w-1/2 lg:flex-col">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(255,255,255,0.35),transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_100%_100%,rgba(255,255,255,0.12),transparent_45%)]" />
 
-      <div className="relative flex h-full flex-col justify-center px-7 xl:px-9">
-        <div className="mx-auto flex max-w-sm flex-col items-center text-center">
-          <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-white text-xl font-black text-sky-500 shadow-[0_24px_60px_-26px_rgba(15,23,42,0.45)]">
-            ML
+      <div className="relative flex h-full min-h-0 flex-1 flex-col justify-center px-8 py-10 sm:px-10 sm:py-12 lg:px-12 lg:py-10">
+        <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
+          <div className="mb-6 flex h-22 w-22 items-center justify-center rounded-full border-2 border-white/90 bg-white shadow-[0_20px_50px_-18px_rgba(15,23,42,0.45)]">
+            <Image src="/images/logo-3.png" alt="Mentor Lagbe" width={64} height={64} className="h-14 w-14 object-contain" priority />
           </div>
 
-          <h2 className="text-3xl font-semibold leading-tight xl:text-4xl">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-[2rem] lg:text-[1.75rem] lg:leading-snug xl:text-4xl xl:leading-[1.15]">
             Start Your Learning Journey
           </h2>
-          <p className="mt-4 text-sm leading-6 text-white/90">
+          <p className="mt-4 max-w-88 text-sm font-normal leading-relaxed text-white/95 sm:text-[0.9375rem] lg:mt-3">
             Join thousands of students and mentors in Bangladesh&apos;s growing one-to-one learning platform.
           </p>
         </div>
@@ -139,7 +139,7 @@ function Field({
 }) {
   return (
     <label htmlFor={htmlFor} className="space-y-2.5">
-      <span className="block text-sm font-medium text-slate-700">{label}</span>
+      <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       {children}
     </label>
   );
@@ -162,8 +162,8 @@ function TextInput(
     <div className="relative">
       <input
         className={cn(
-          "h-10 w-full rounded-xl border bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white",
-          hasError ? "border-rose-300" : "border-slate-200",
+          "h-11 w-full rounded-xl border border-slate-200/95 bg-slate-50/90 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#3b82f6] focus:bg-white focus:ring-2 focus:ring-[#3b82f6]/15 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:border-sky-500 dark:focus:ring-sky-500/20",
+          hasError ? "border-rose-300" : "",
           iconRight ? "pr-12" : "",
           className
         )}
@@ -190,51 +190,65 @@ function PasswordInput({
         {...props}
         type={visible ? "text" : "password"}
         className={cn(
-          "h-10 w-full rounded-xl border bg-slate-50 px-3.5 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white",
-          hasError ? "border-rose-300" : "border-slate-200"
+          "h-11 w-full rounded-xl border border-slate-200/95 bg-slate-50/90 px-3.5 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#3b82f6] focus:bg-white focus:ring-2 focus:ring-[#3b82f6]/15 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:border-sky-500 dark:focus:ring-sky-500/20",
+          hasError ? "border-rose-300" : ""
         )}
       />
       <button
         type="button"
-        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-400 transition hover:text-slate-700"
+        className="absolute inset-y-0 right-0 z-1 flex w-11 items-center justify-center rounded-r-xl text-slate-400 transition hover:text-slate-700 dark:hover:text-slate-200"
         onClick={() => setVisible((current) => !current)}
         aria-label={visible ? "Hide password" : "Show password"}
-      />
-      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+      >
         {visible ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-      </span>
+      </button>
     </div>
   );
 }
 
-function SectionTitle({ title, description }: { title: string; description: React.ReactNode }) {
+function SectionTitle({
+  title,
+  description,
+  compact,
+}: {
+  title: string;
+  description: React.ReactNode;
+  compact?: boolean;
+}) {
   return (
-    <div className="space-y-2 text-center">
-      <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{title}</h2>
-      <p className="mx-auto max-w-md text-sm leading-6 text-slate-500">{description}</p>
+    <div className={compact ? "space-y-2 text-center" : "space-y-2.5 text-center"}>
+      <h2
+        className={cn(
+          "font-bold tracking-tight text-slate-900 dark:text-slate-50",
+          compact ? "text-xl sm:text-2xl sm:leading-snug" : "text-2xl sm:text-[1.75rem] sm:leading-snug"
+        )}
+      >
+        {title}
+      </h2>
+      <p className="mx-auto max-w-md text-sm leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
     </div>
   );
 }
 
-function SocialButtons() {
+function SocialButtons({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4 text-xs text-slate-400">
-        <span className="h-px flex-1 bg-slate-200" />
-        <span>or</span>
-        <span className="h-px flex-1 bg-slate-200" />
+    <div className={compact ? "space-y-3.5" : "space-y-5"}>
+      <div className="flex items-center gap-4 text-xs font-medium text-slate-400">
+        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-600" />
+        <span className="shrink-0 uppercase tracking-wide">or</span>
+        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-600" />
       </div>
 
-      <div className="flex items-center justify-center gap-5">
+      <div className="flex items-center justify-center gap-6">
         <button
           type="button"
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700"
         >
           <GoogleIcon className="h-5 w-5" />
         </button>
         <button
           type="button"
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700"
         >
           <FacebookIcon className="h-5 w-5 text-[#1877F2]" />
         </button>
@@ -409,21 +423,26 @@ export function AuthModal({
   }
 
   return (
-    <Modal open={open} onClose={closeModal} className="h-auto max-w-5xl">
-      <HeroSidePanel />
+    <Modal
+      variant="glass"
+      open={open}
+      onClose={closeModal}
+      className="h-[min(96dvh,calc(100dvh-0.35rem))] max-w-6xl"
+    >
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex-row lg:items-stretch">
+        <HeroSidePanel />
 
-      <div className="relative flex min-w-0 flex-1 flex-col">
-        <div className="px-5 pb-3 pt-4 sm:px-7">
-          <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 text-sm font-medium text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+        <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:w-1/2 dark:bg-slate-900">
+          <div className="shrink-0 px-6 pb-3 pt-12 sm:px-10 sm:pb-4 sm:pt-14">
+            <div className="inline-flex rounded-2xl border border-slate-200/90 bg-slate-100/90 p-1 text-sm font-semibold text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:shadow-none">
               <button
                 type="button"
                 onClick={() => openView("login")}
                 className={cn(
-                  "rounded-lg border border-transparent px-4 py-2 transition",
+                  "rounded-xl px-5 py-2.5 transition",
                   activePanel === "login"
-                    ? "border-sky-200 bg-white text-sky-600 shadow-sm"
-                    : "hover:border-slate-200 hover:bg-white hover:text-slate-900"
+                    ? "border border-slate-200/80 bg-white text-[#2563eb] shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-sky-400"
+                    : "border border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                 )}
               >
                 Login
@@ -432,20 +451,19 @@ export function AuthModal({
                 type="button"
                 onClick={() => openView("register")}
                 className={cn(
-                  "rounded-lg border border-transparent px-4 py-2 transition",
+                  "rounded-xl px-5 py-2.5 transition",
                   activePanel === "register"
-                    ? "border-sky-200 bg-white text-sky-600 shadow-sm"
-                    : "hover:border-slate-200 hover:bg-white hover:text-slate-900"
+                    ? "border border-slate-200/80 bg-white text-[#2563eb] shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-sky-400"
+                    : "border border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                 )}
               >
                 Signup
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="px-5 pb-8 sm:px-7">
-          <div className="mx-auto w-full max-w-136 py-2 sm:py-3">
+          <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden px-6 pb-6 pt-0 sm:px-10 sm:pb-8">
+            <div className="mx-auto w-full max-w-2xl py-0.5 sm:py-1">
             {activePanel === "login" && (
               <form className="space-y-6" onSubmit={loginForm.handleSubmit}>
                 <SectionTitle title="Welcome Back" description="Log in to continue your learning journey." />
@@ -460,34 +478,48 @@ export function AuthModal({
                   </Field>
                 </div>
                 <Button type="submit" className="w-full" size="lg">Log In</Button>
-                <button type="button" onClick={() => openView("forgot")} className="w-full text-center text-sm font-semibold text-sky-500 hover:text-sky-600">Forgot Password?</button>
+                <button
+                  type="button"
+                  onClick={() => openView("forgot")}
+                  className="w-full text-center text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8]"
+                >
+                  Forgot Password?
+                </button>
                 <SocialButtons />
               </form>
             )}
 
             {activePanel === "register" && (
-              <form className="space-y-4" onSubmit={registerForm.handleSubmit}>
-                <SectionTitle title="Create Your Account" description={<>Join <span className="text-sky-500">Mentor Lagbe</span> and start your journey</>} />
-                <div className="space-y-4">
-                  <div className="mb-1">
+              <form className="space-y-3" onSubmit={registerForm.handleSubmit}>
+                <SectionTitle
+                  compact
+                  title="Create Your Account"
+                  description={
+                    <>
+                      Join <span className="font-semibold text-[#2563eb]">Mentor Lagbe</span> and start your journey
+                    </>
+                  }
+                />
+                <div className="space-y-3">
+                  <div className="mb-0">
                     <Field label="Full Name" htmlFor="register-name">
                       <TextInput id="register-name" name="fullName" placeholder="Enter your full name" value={registerForm.values.fullName} onChange={registerForm.handleChange} onBlur={registerForm.handleBlur} hasError={Boolean(registerForm.touched.fullName && registerForm.errors.fullName)} />
                       <FieldError message={registerForm.touched.fullName ? registerForm.errors.fullName : undefined} />
                     </Field>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2.5">
-                      <span className="block text-sm font-medium text-slate-700">Email Address</span>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">Email Address</span>
                       <TextInput id="register-email" name="email" type="email" placeholder="you@example.com" value={registerForm.values.email} onChange={registerForm.handleChange} onBlur={registerForm.handleBlur} hasError={Boolean(registerForm.touched.email && registerForm.errors.email)} />
                       <FieldError message={registerForm.touched.email ? registerForm.errors.email : undefined} />
                     </div>
-                    <div className="space-y-2.5">
-                      <span className="block text-sm font-medium text-slate-700">WhatsApp Phone (optional)</span>
+                    <div className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">WhatsApp Phone (optional)</span>
                       <TextInput id="register-phone" name="phone" type="tel" placeholder="014XXXXXXXX" value={registerForm.values.phone} onChange={registerForm.handleChange} onBlur={registerForm.handleBlur} hasError={Boolean(registerForm.touched.phone && registerForm.errors.phone)} />
                       <FieldError message={registerForm.touched.phone ? registerForm.errors.phone : undefined} />
                     </div>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Password" htmlFor="register-password">
                       <PasswordInput id="register-password" name="password" placeholder="Create a strong password" value={registerForm.values.password} onChange={registerForm.handleChange} onBlur={registerForm.handleBlur} hasError={Boolean(registerForm.touched.password && registerForm.errors.password)} />
                       <FieldError message={registerForm.touched.password ? registerForm.errors.password : undefined} />
@@ -499,13 +531,13 @@ export function AuthModal({
                   </div>
                 </div>
                 <Button type="submit" className="w-full" size="lg">Create Account</Button>
-                <SocialButtons />
+                <SocialButtons compact />
                 <p className="text-center text-sm text-slate-500">
                   Already have an account?{" "}
                   <button
                     type="button"
                     onClick={() => openView("login")}
-                    className="font-semibold text-sky-500 transition hover:text-sky-600"
+                    className="font-semibold text-[#2563eb] transition hover:text-[#1d4ed8]"
                   >
                     Log In
                   </button>
@@ -721,6 +753,7 @@ export function AuthModal({
                 <Button className="w-full" onClick={() => openView("login")}>Back to Login</Button>
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

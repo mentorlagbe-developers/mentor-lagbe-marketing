@@ -6,6 +6,7 @@ import {
   CircleHelp,
   FileBarChart2,
   GraduationCap,
+  Inbox,
   LayoutDashboard,
   MessageSquareText,
   Settings,
@@ -33,7 +34,8 @@ export type DashboardSectionKey =
   | "help-center"
   | "platform-settings"
   | "security-center"
-  | "pricing";
+  | "pricing"
+  | "admin-session-requests";
 
 export type DashboardMenuItem = {
   id: DashboardSectionKey;
@@ -139,6 +141,12 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
     href: "/dashboard/pricing",
     icon: Video,
   },
+  "admin-session-requests": {
+    id: "admin-session-requests",
+    label: "Session Request",
+    href: "/dashboard/admin-session-requests",
+    icon: Inbox,
+  },
 };
 
 const roleMenuKeys: Record<UserRole, DashboardSectionKey[]> = {
@@ -149,6 +157,7 @@ const roleMenuKeys: Record<UserRole, DashboardSectionKey[]> = {
     "dashboard",
     "user-management",
     "mentor-management",
+    "admin-session-requests",
     "reports",
     "help-center",
     "platform-settings",
@@ -161,7 +170,7 @@ export function getDashboardMenuByRole(role: UserRole) {
 }
 
 export function isRoleAllowedForSection(role: UserRole, section: string) {
-  if (section === "live-session-book" || section === "profile") {
+  if (section === "live-session-book" || section === "profile" || section === "platform-settings") {
     return true;
   }
   return roleMenuKeys[role].includes(section as DashboardSectionKey);

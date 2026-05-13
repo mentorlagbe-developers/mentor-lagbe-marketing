@@ -12,6 +12,8 @@ export type MeProfile = {
   fullName: string;
   phone?: string | null;
   profilePictureUrl?: string | null;
+  address?: string | null;
+  currentEducationStatus?: string | null;
   gender?: "male" | "female" | "other" | "prefer_not_to_say" | null;
   dateOfBirth?: string | null;
   isActive: boolean;
@@ -28,8 +30,13 @@ export type MeProfile = {
     universityName?: string | null;
     studentIdNumber?: string | null;
     semester?: string | null;
+    currentEducationStatus?: string | null;
+    address?: string | null;
     biography?: string | null;
     waNumber?: string | null;
+    totalSessions?: number | null;
+    freeTrialUsed?: boolean | null;
+    freeTrialSessionId?: string | null;
     createdAt: string;
     updatedAt: string;
   } | null;
@@ -40,6 +47,8 @@ export type MeProfile = {
     qualification?: string | null;
     experienceYears?: number | null;
     waNumber?: string | null;
+    /** Set once; only super admin can change via admin tools. */
+    expertiseDepartmentId?: string | null;
     expertiseCourseIds?: string[] | null;
     availability?: Array<{
       dayOfWeek: number;
@@ -50,6 +59,16 @@ export type MeProfile = {
     createdAt: string;
     updatedAt: string;
   } | null;
+  mentorExpertiseCourseIds?: string[] | null;
+  mentorAvailability?: Array<{
+    id?: string;
+    mentorId?: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    isActive: boolean;
+    createdAt?: string;
+  }> | null;
   adminProfile?: Record<string, unknown> | null;
 };
 
@@ -62,6 +81,7 @@ export async function getMyProfile() {
 export async function updateMyBasicProfile(payload: {
   fullName?: string;
   phone?: string;
+  profilePictureUrl?: string;
   gender?: "male" | "female" | "other" | "prefer_not_to_say";
   dateOfBirth?: string;
 }) {
@@ -77,6 +97,8 @@ export async function updateMyStudentProfile(payload: {
   universityName?: string;
   studentIdNumber?: string;
   semester?: string;
+  currentEducationStatus?: string;
+  address?: string;
   biography?: string;
   waNumber?: string;
 }) {
@@ -85,6 +107,14 @@ export async function updateMyStudentProfile(payload: {
     auth: true,
     body: JSON.stringify(payload),
   });
+}
+
+function wallTimeToHms(value: string) {
+  const t = value.trim();
+  if (!t) return t;
+  const head = t.slice(0, 5);
+  if (/^\d{2}:\d{2}$/.test(head)) return `${head}:00`;
+  return t.length >= 8 ? t.slice(0, 8) : t;
 }
 
 export async function updateMyMentorProfile(payload: {
@@ -100,10 +130,28 @@ export async function updateMyMentorProfile(payload: {
     isActive: boolean;
   }>;
 }) {
+  /** Only keys the mentor-profile PATCH is expected to accept (avoids strict schema / unknown-field validation). */
+  const body: Record<string, unknown> = {};
+  if (payload.biography !== undefined) body.biography = payload.biography;
+  if (payload.qualification !== undefined) body.qualification = payload.qualification;
+  if (payload.experienceYears !== undefined) {
+    const y = Number(payload.experienceYears);
+    if (!Number.isNaN(y)) body.experienceYears = y;
+  }
+  if (payload.waNumber !== undefined) body.waNumber = payload.waNumber;
+  if (payload.expertiseCourseIds !== undefined) body.expertiseCourseIds = payload.expertiseCourseIds;
+  if (payload.availability !== undefined) {
+    body.availability = payload.availability.map((slot) => ({
+      dayOfWeek: slot.dayOfWeek,
+      startTime: wallTimeToHms(slot.startTime),
+      endTime: wallTimeToHms(slot.endTime),
+      isActive: Boolean(slot.isActive),
+    }));
+  }
   return apiFetch<Record<string, unknown>>("/users/me/mentor-profile", {
     method: "PATCH",
     auth: true,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 }
 

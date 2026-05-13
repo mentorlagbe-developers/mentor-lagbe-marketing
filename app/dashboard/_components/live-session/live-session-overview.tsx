@@ -2,24 +2,79 @@
 
 import { CalendarClock, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
+import { apiFetch } from "@/lib/api";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Button } from "@/app/components/ui/button";
 import { Modal } from "@/app/components/ui/modal";
 
-const liveSessionStats = [
-  { label: "Total Live Sessions Taken", value: "42", trend: "Across this semester" },
-  { label: "Canceled Sessions", value: "3", trend: "Down 1 from last month" },
-  { label: "Upcoming Sessions", value: "5", trend: "Next starts in 1h 20m" },
-  { label: "Attendance Rate", value: "91%", trend: "Above cohort average" },
-];
+type BookingRecord = {
+  id: string;
+  readableId: string;
+  status: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  courseId?: string | null;
+  customTopicName?: string | null;
+  topicId?: string | null;
+  topicName?: string | null;
+  mentorId?: string | null;
+};
 
-const upcomingLiveSessions = [
-  { id: "LS-1204", course: "CSE220 - Data Structures", mentorId: "MTR-2041", time: "Today, 8:00 PM", room: "Room A-12" },
-  { id: "LS-1207", course: "BBA210 - Financial Management", mentorId: "MTR-3198", time: "Tomorrow, 6:30 PM", room: "Room B-05" },
-  { id: "LS-1211", course: "CSE310 - Operating Systems", mentorId: "MTR-1187", time: "Sat, 9:00 PM", room: "Room C-03" },
-];
+function isUuidLike(value: string) {
+  const normalized = value.trim();
+  return (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalized) ||
+    /^[0-9a-f]{32}$/i.test(normalized)
+  );
+}
+
+function getReadableText(value?: string | null) {
+  if (!value) return "";
+  const normalized = value.trim();
+  if (!normalized || isUuidLike(normalized)) return "";
+  return normalized;
+}
+
+function getReadableSessionId(item: Record<string, unknown>) {
+  const candidates = [
+    item.readableId,
+    item.sessionReadableId,
+    item.bookingReadableId,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim() && !isUuidLike(candidate.trim())) {
+      return candidate.trim();
+    }
+  }
+  return "N/A";
+}
+
+function getDirectTopicName(item: Record<string, unknown>) {
+  const directCandidates = [
+    item.topicName,
+    item.topicTitle,
+    item.subjectName,
+  ];
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  if (item.topic && typeof item.topic === "object") {
+    const topicRecord = item.topic as Record<string, unknown>;
+    const nestedCandidates = [topicRecord.name, topicRecord.title, topicRecord.label];
+    for (const candidate of nestedCandidates) {
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+  }
+  return "";
+}
 
 export function LiveSessionOverview() {
   const router = useRouter();
@@ -30,6 +85,125 @@ export function LiveSessionOverview() {
   const [paidPhone, setPaidPhone] = useState("");
   const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
   const [isPaymentConfirmed] = useState(false);
+  const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [topicNames, setTopicNames] = useState<Record<string, string>>({});
+
+  async function hydrateTopicNames(items: BookingRecord[]) {
+    const courseIds = Array.from(new Set(items.map((item) => item.courseId).filter(Boolean))) as string[];
+    if (!courseIds.length) {
+      return;
+    }
+    const responses = await Promise.allSettled(
+      courseIds.map((courseId) =>
+        apiFetch<Array<Record<string, unknown>>>(
+          `/topics?courseId=${encodeURIComponent(courseId)}`,
+          { auth: true }
+        )
+      )
+    );
+    const nextTopicNames: Record<string, string> = {};
+    for (const result of responses) {
+      if (result.status !== "fulfilled") continue;
+      for (const topic of result.value) {
+        const topicId = typeof topic.id === "string" ? topic.id : "";
+        const topicName =
+          typeof topic.name === "string"
+            ? topic.name
+            : typeof topic.title === "string"
+              ? topic.title
+              : typeof topic.label === "string"
+                ? topic.label
+                : "";
+        if (topicId && topicName) {
+          nextTopicNames[topicId] = topicName;
+        }
+      }
+    }
+    if (Object.keys(nextTopicNames).length) {
+      setTopicNames((prev) => ({ ...prev, ...nextTopicNames }));
+    }
+  }
+
+  async function loadBookings() {
+    try {
+      const data = await apiFetch<unknown>("/live-sessions/bookings/me", { auth: true });
+      let records: Record<string, unknown>[] = [];
+      if (Array.isArray(data)) {
+        records = data.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"));
+      } else if (data && typeof data === "object") {
+        const source = data as Record<string, unknown>;
+        const maybeItems = source.items ?? source.records ?? source.bookings ?? source.data;
+        if (Array.isArray(maybeItems)) {
+          records = maybeItems.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"));
+        } else {
+          records = [source];
+        }
+      }
+      const normalized = records.map((item) => ({
+        id: typeof item.id === "string" ? item.id : crypto.randomUUID(),
+        readableId: getReadableSessionId(item),
+        status: typeof item.status === "string" ? item.status : "unknown",
+        sessionDate: typeof item.sessionDate === "string" ? item.sessionDate : "",
+        startTime: typeof item.startTime === "string" ? item.startTime : "",
+        endTime: typeof item.endTime === "string" ? item.endTime : "",
+        durationMinutes: typeof item.durationMinutes === "number" ? item.durationMinutes : 0,
+        courseId: typeof item.courseId === "string" ? item.courseId : "",
+        customTopicName: typeof item.customTopicName === "string" ? item.customTopicName : "",
+        topicId: typeof item.topicId === "string" ? item.topicId : "",
+        topicName: getDirectTopicName(item),
+        mentorId: typeof item.mentorId === "string" ? item.mentorId : "",
+      }));
+      setBookings(normalized);
+      await hydrateTopicNames(normalized);
+    } catch {
+      setBookings([]);
+      setTopicNames({});
+    }
+  }
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      startTransition(() => {
+        void loadBookings();
+      });
+    });
+    return () => cancelAnimationFrame(id);
+    // Intentionally mount-only: load bookings once when this view mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadBookings is stable enough for mount fetch
+  }, []);
+
+  const liveSessionStats = useMemo(() => {
+    const total = bookings.length;
+    const cancelled = bookings.filter((item) => item.status.includes("cancel")).length;
+    const upcoming = bookings.filter((item) => item.status.includes("pending") || item.status.includes("upcoming")).length;
+    const completed = bookings.filter((item) => item.status.includes("completed")).length;
+    const attendance = total ? `${Math.round((completed / total) * 100)}%` : "0%";
+    return [
+      { label: "Total Live Sessions Taken", value: String(total), trend: "Across all bookings" },
+      { label: "Canceled Sessions", value: String(cancelled), trend: "Auto-synced from booking status" },
+      { label: "Upcoming Sessions", value: String(upcoming), trend: "Updated from backend" },
+      { label: "Attendance Rate", value: attendance, trend: "Completed vs total sessions" },
+    ];
+  }, [bookings]);
+
+  const upcomingLiveSessions = useMemo(() => {
+    return [...bookings]
+      .filter((item) => item.status.includes("pending") || item.status.includes("upcoming"))
+      .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))
+      .slice(0, 3)
+      .map((item, index) => ({
+        id: item.id,
+        sessionReadableId: item.readableId || "N/A",
+        course:
+          getReadableText(item.customTopicName) ||
+          getReadableText(item.topicName) ||
+          getReadableText(item.topicId ? topicNames[item.topicId] : "") ||
+          `Session ${index + 1}`,
+        mentorId: item.mentorId || "Pending mentor assignment",
+        time: `${item.sessionDate || "TBD"}, ${item.startTime.slice(0, 5)}-${item.endTime.slice(0, 5)}`,
+        room: item.readableId || "N/A",
+      }));
+  }, [bookings, topicNames]);
 
   const meetingLink = "https://meet.google.com/live-demo-mentorlagbe";
   const canJoinMeeting = isPaymentConfirmed;
@@ -113,7 +287,7 @@ export function LiveSessionOverview() {
                 <div className="space-y-1">
                   <p className="font-semibold text-slate-800 dark:text-slate-100">{session.course}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Session ID: {session.id} • Mentor ID: {session.mentorId}
+                    Session ID: {session.sessionReadableId} • Mentor ID: {session.mentorId}
                   </p>
                   <p className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                     <CalendarClock className="h-3.5 w-3.5" />
@@ -130,6 +304,11 @@ export function LiveSessionOverview() {
               </div>
             </article>
           ))}
+          {!upcomingLiveSessions.length ? (
+            <p className="rounded-xl border border-slate-200 px-3 py-4 text-sm text-slate-500 dark:border-slate-700">
+              No upcoming live sessions found.
+            </p>
+          ) : null}
         </div>
       </section>
 
