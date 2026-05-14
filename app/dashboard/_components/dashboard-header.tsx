@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, CalendarPlus2, ChevronDown, Globe, Lock, LogOut, Menu, MoonStar, Settings, Sun, UserCircle2 } from "lucide-react";
+import { Bell, CalendarPlus2, ChevronDown, Globe, Lock, LogOut, Menu, MoonStar, Settings, Star, Sun, TrendingUp, UserCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NotificationDropdown } from "@/app/dashboard/_components/notification-dropdown";
@@ -9,6 +9,98 @@ import { useProfileStatus } from "@/app/dashboard/_components/profile-status-con
 import { Button } from "@/app/components/ui/button";
 import type { AuthUser, UserRole } from "@/lib/mock-auth";
 import { useAuth } from "@/lib/use-auth";
+import { useNotifications } from "@/lib/notifications-context";
+
+// ─── Mentor stats pill (rating + sessions) ────────────────────
+function MentorStatsPill({
+  rating,
+  totalSessions,
+}: {
+  rating: number;
+  totalSessions: number;
+}) {
+  const [showNudge, setShowNudge] = useState(false);
+  const isNew = rating === 0 && totalSessions === 0;
+
+  // Auto-show nudge tooltip on mount for new mentors, then hide after 6 s
+  useEffect(() => {
+    if (!isNew) return;
+    const show = setTimeout(() => setShowNudge(true), 800);
+    const hide = setTimeout(() => setShowNudge(false), 6800);
+    return () => {
+      clearTimeout(show);
+      clearTimeout(hide);
+    };
+  }, [isNew]);
+
+  const clamped = Math.min(5, Math.max(0, rating));
+  const full = Math.floor(clamped);
+  const hasHalf = clamped - full >= 0.25 && clamped - full < 0.75;
+  const empty = 5 - full - (hasHalf ? 1 : 0);
+
+  return (
+    <div className="relative flex items-center gap-2">
+      {/* Rating stars */}
+      <div
+        className="flex items-center gap-1"
+        onMouseEnter={() => isNew && setShowNudge(true)}
+        onMouseLeave={() => isNew && setShowNudge(false)}
+      >
+        <div className="flex items-center gap-0.5">
+          {Array.from({ length: full }).map((_, i) => (
+            <Star key={`f${i}`} className="h-3 w-3 fill-amber-400 text-amber-400" />
+          ))}
+          {hasHalf && (
+            <span className="relative inline-flex h-3 w-3">
+              <Star className="absolute h-3 w-3 text-slate-300 dark:text-slate-600" />
+              <span className="absolute inset-0 overflow-hidden" style={{ width: "50%" }}>
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+              </span>
+            </span>
+          )}
+          {Array.from({ length: empty }).map((_, i) => (
+            <Star key={`e${i}`} className="h-3 w-3 text-slate-300 dark:text-slate-600" />
+          ))}
+        </div>
+        <span className={`text-xs font-semibold ${isNew ? "text-slate-400 dark:text-slate-500" : "text-amber-500"}`}>
+          {isNew ? "0.0" : clamped.toFixed(1)}/5
+        </span>
+      </div>
+
+      {/* Session count */}
+      <span className="hidden h-3 w-px bg-slate-300 dark:bg-slate-600 sm:block" aria-hidden />
+      <div className="hidden items-center gap-1 sm:flex">
+        <TrendingUp className="h-3 w-3 text-sky-500" />
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          {totalSessions} session{totalSessions !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* New-mentor nudge tooltip */}
+      {isNew && showNudge && (
+        <div
+          className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-sky-200 bg-white p-3 shadow-xl shadow-sky-100/60 dark:border-sky-800/40 dark:bg-slate-800 dark:shadow-slate-900/60"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-2">
+            <Star className="mt-0.5 h-4 w-4 shrink-0 fill-amber-400 text-amber-400" />
+            <div>
+              <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+                Start your mentorship journey!
+              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                Accept sessions, deliver great guidance, and your rating will build naturally. Your first session is the first step.
+              </p>
+            </div>
+          </div>
+          {/* Arrow */}
+          <div className="absolute -top-1.5 left-4 h-3 w-3 rotate-45 rounded-sm border-l border-t border-sky-200 bg-white dark:border-sky-800/40 dark:bg-slate-800" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 type DashboardHeaderProps = {
   user: AuthUser;
@@ -41,6 +133,20 @@ export function DashboardHeader({
   const router = useRouter();
   const auth = useAuth();
   const { needsCompletionForLiveSession, profile } = useProfileStatus();
+  const { unreadCount } = useNotifications();
+
+  const mentorStats = useMemo(() => {
+    if (role !== "teacher") return null;
+    const mp = profile?.mentorProfile as unknown as Record<string, unknown> | null | undefined;
+    const top = profile as unknown as Record<string, unknown> | null | undefined;
+    const r = mp?.rating ?? mp?.averageRating ?? top?.rating ?? top?.averageRating;
+    const rating = typeof r === "number" ? r : 0;
+    const s =
+      mp?.totalSessions ?? mp?.sessionCount ?? mp?.completedSessions ??
+      top?.totalSessions ?? top?.sessionCount ?? top?.completedSessions;
+    const totalSessions = typeof s === "number" ? s : 0;
+    return { rating, totalSessions };
+  }, [profile, role]);
   const [roleQuery] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -142,42 +248,38 @@ export function DashboardHeader({
             <Menu className="h-4.5 w-4.5" />
           </button>
           <div className="leading-tight">
-            <h1
-              className={`text-sm font-semibold transition-colors ${
-                isScrolled ? "text-slate-900 dark:text-slate-100" : "text-slate-900 dark:text-slate-100"
-              }`}
-            >
+            <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               Welcome {userName}
             </h1>
-            <div className="mt-0.5 flex items-center gap-4">
-              <p
-                className={`text-xs transition-colors ${
-                  isScrolled ? "text-slate-500 dark:text-slate-400" : "text-slate-500 dark:text-slate-400"
-                }`}
-              >
+            <div className="mt-0.5 flex flex-wrap items-center gap-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Role: {role}
               </p>
-              <p
-                className={`text-xs transition-colors ${
-                  isScrolled ? "text-slate-500 dark:text-slate-400" : "text-slate-500 dark:text-slate-400"
-                }`}
-              >
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 ID: {userId}
               </p>
+              {mentorStats !== null && (
+                <MentorStatsPill
+                  rating={mentorStats.rating}
+                  totalSessions={mentorStats.totalSessions}
+                />
+              )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            iconLeft={CalendarPlus2}
-            disabled={needsCompletionForLiveSession}
-            onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
-            className="disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Book Live Session
-          </Button>
+          {role !== "teacher" && (
+            <Button
+              size="sm"
+              iconLeft={CalendarPlus2}
+              disabled={needsCompletionForLiveSession}
+              onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
+              className="disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Book Live Session
+            </Button>
+          )}
 
           <button
             type="button"
@@ -230,9 +332,11 @@ export function DashboardHeader({
               aria-label="Open notifications"
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
-                3
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </button>
             {isNotificationOpen ? <NotificationDropdown /> : null}
           </div>

@@ -4,8 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/app/components/ui/button";
+import { JoinMeetingButton } from "@/app/components/ui/join-meeting-button";
 import { Modal } from "@/app/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { Pagination } from "@/app/components/ui/pagination";
+import {
+  formatNextSessionDateLine,
+  formatNextSessionTimeRange,
+  pickNextUpcomingBooking,
+} from "@/app/dashboard/_components/student/student-session-utils";
 
 type BookingRecord = {
   id: string;
@@ -22,6 +29,7 @@ type BookingRecord = {
   customTopicName?: string | null;
   problemDescription?: string | null;
   mentorId?: string | null;
+  mentorReadableId?: string | null;
   meetLink?: string | null;
   meetLinkActive?: boolean;
   broadcastCount?: number;
@@ -79,7 +87,17 @@ function toBookingRecord(record: Record<string, unknown>): BookingRecord {
     customTopicName: getString("customTopicName", ""),
     problemDescription: getString("problemDescription", ""),
     mentorId: getString("mentorId", ""),
-    meetLink: getString("meetLink", ""),
+    mentorReadableId: getString("mentorReadableId", "") || getString("mentorProfile.readableId", "") ||
+      (() => {
+        const mp = record.mentor ?? record.mentorProfile ?? record.mentorInfo;
+        if (mp && typeof mp === "object") {
+          const m = mp as Record<string, unknown>;
+          return typeof m.readableId === "string" ? m.readableId :
+                 typeof m.mentorReadableId === "string" ? m.mentorReadableId : "";
+        }
+        return "";
+      })(),
+    meetLink: getString("meetLink", "") || getString("meet_link", ""),
     meetLinkActive: Boolean(record.meetLinkActive),
     broadcastCount: getNumber("broadcastCount", 0),
     mentorAcceptedAt: getString("mentorAcceptedAt", ""),
@@ -121,10 +139,10 @@ function getStatusTone(status: string) {
 }
 
 function badgeToneClass(tone: "success" | "warning" | "danger" | "info") {
-  if (tone === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (tone === "warning") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (tone === "danger") return "border-rose-200 bg-rose-50 text-rose-700";
-  return "border-sky-200 bg-sky-50 text-sky-700";
+  if (tone === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/50 dark:bg-emerald-900/30 dark:text-emerald-300";
+  if (tone === "warning") return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/30 dark:text-amber-300";
+  if (tone === "danger") return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-700/50 dark:bg-rose-900/30 dark:text-rose-300";
+  return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700/50 dark:bg-sky-900/30 dark:text-sky-300";
 }
 
 function formatTime(raw: string) {
@@ -158,6 +176,12 @@ export function BookingsSection() {
   const [page, setPage] = useState(1);
   const [courseNames, setCourseNames] = useState<Record<string, string>>({});
   const [topicNames, setTopicNames] = useState<Record<string, string>>({});
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const hydrateSubjectNames = useCallback(async (items: BookingRecord[]) => {
     try {
@@ -293,9 +317,7 @@ export function BookingsSection() {
     }, {});
     const pendingMentorCount = bookings.filter((booking) => !booking.mentorId).length;
     const meetingReadyCount = bookings.filter((booking) => booking.meetLinkActive).length;
-    const nextSession = [...bookings]
-      .filter((booking) => booking.sessionDate)
-      .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))[0] ?? null;
+    const nextSession = pickNextUpcomingBooking(bookings, nowMs);
     return {
       totalMinutes,
       averageDuration,
@@ -306,68 +328,78 @@ export function BookingsSection() {
       meetingReadyCount,
       nextSession,
     };
-  }, [bookings, getSubjectLabel]);
+  }, [bookings, getSubjectLabel, nowMs]);
 
   return (
     <section className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Study Time Spent</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{Math.floor(insights.totalMinutes / 60)}h {insights.totalMinutes % 60}m</p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Total Study Time Spent</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{Math.floor(insights.totalMinutes / 60)}h {insights.totalMinutes % 60}m</p>
         </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Average Session Duration</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{insights.averageDuration} min</p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Average Session Duration</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{insights.averageDuration} min</p>
         </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Recently Studied Subject</p>
-          <p className="mt-2 text-lg font-semibold text-slate-900">{insights.mostStudied}</p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Recently Studied Subject</p>
+          <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{insights.mostStudied}</p>
         </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Last Booking</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{insights.lastBookingLabel}</p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Last Booking</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{insights.lastBookingLabel}</p>
         </article>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-900">Mentor Assignment</h3>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{insights.pendingMentorCount}</p>
-          <p className="mt-1 text-sm text-slate-500">Sessions waiting for mentor acceptance.</p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Mentor Assignment</h3>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{insights.pendingMentorCount}</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Sessions waiting for mentor acceptance.</p>
         </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-900">Meeting Ready</h3>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{insights.meetingReadyCount}</p>
-          <p className="mt-1 text-sm text-slate-500">Bookings with active meeting links.</p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Meeting Ready</h3>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{insights.meetingReadyCount}</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Bookings with active meeting links.</p>
         </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-900">Next Session</h3>
-          <p className="mt-2 text-base font-semibold text-slate-900">
-            {insights.nextSession ? insights.nextSession.sessionDate : "Not scheduled"}
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            {insights.nextSession
-              ? `${formatTime(insights.nextSession.startTime)} - ${formatTime(insights.nextSession.endTime)}`
-              : "Book your next live session now."}
-          </p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Next Session</h3>
+          {isLoading ? (
+            <p className="mt-2 text-base font-semibold text-slate-900 dark:text-slate-100">Loading…</p>
+          ) : insights.nextSession ? (
+            <>
+              <p className="mt-2 text-base font-semibold text-slate-900 dark:text-slate-100">
+                {formatNextSessionDateLine(insights.nextSession.sessionDate)}
+              </p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {formatNextSessionTimeRange(insights.nextSession.startTime, insights.nextSession.endTime)}
+              </p>
+              <p className="mt-2 text-sm font-medium text-sky-600 dark:text-sky-400">Upcoming session</p>
+            </>
+          ) : (
+            <>
+              <p className="mt-2 text-base font-semibold text-slate-700 dark:text-slate-300">no session found</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Book a live session to see it here.</p>
+            </>
+          )}
         </article>
       </div>
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">Booking Session History</h3>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Booking Session History</h3>
             <Button size="sm" variant="secondary" iconLeft={RefreshCw} onClick={() => void loadBookings()}>
               Refresh
             </Button>
           </div>
-          {isLoading ? <p className="mt-4 text-sm text-slate-500">Loading booking history...</p> : null}
+          {isLoading ? <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Loading booking history...</p> : null}
           {error ? <p className="mt-4 text-sm text-rose-500">{error}</p> : null}
           {!isLoading && !error ? (
             <>
-              <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+              <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-700">
                 <table className="min-w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
+                    <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-700/60 dark:text-slate-400">
                       <th className="px-3 py-2">Session ID</th>
                       <th className="px-3 py-2">Date</th>
                       <th className="px-3 py-2">Time</th>
@@ -379,12 +411,12 @@ export function BookingsSection() {
                   </thead>
                   <tbody>
                     {pagedBookings.map((booking) => (
-                      <tr key={booking.id} className="border-b border-slate-100 transition hover:bg-sky-50/50">
-                        <td className="px-3 py-2 font-medium text-slate-800">{booking.readableId}</td>
-                        <td className="px-3 py-2 text-slate-600">{booking.sessionDate || "-"}</td>
-                        <td className="px-3 py-2 text-slate-600">{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</td>
-                        <td className="px-3 py-2 text-slate-600">{booking.durationMinutes} min</td>
-                        <td className="px-3 py-2 font-medium text-slate-700">৳{booking.priceBdt}</td>
+                      <tr key={booking.id} className="border-b border-slate-100 transition hover:bg-sky-50/50 dark:border-slate-700 dark:hover:bg-sky-950/30">
+                        <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{booking.readableId}</td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{booking.sessionDate || "-"}</td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{booking.durationMinutes} min</td>
+                        <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-300">৳{booking.priceBdt}</td>
                         <td className="px-3 py-2">
                           <span
                             className={cn(
@@ -399,7 +431,7 @@ export function BookingsSection() {
                           <button
                             type="button"
                             onClick={() => void handleViewDetails(booking.id)}
-                            className="inline-flex items-center justify-center rounded-lg border border-sky-200 p-2 text-sky-600 transition hover:bg-sky-50"
+                            className="inline-flex items-center justify-center rounded-lg border border-sky-200 p-2 text-sky-600 transition hover:bg-sky-50 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/50"
                             aria-label="View booking details"
                           >
                             <Eye className="h-4 w-4" />
@@ -409,30 +441,28 @@ export function BookingsSection() {
                     ))}
                     {!pagedBookings.length ? (
                       <tr>
-                        <td className="px-3 py-5 text-center text-slate-500" colSpan={7}>No bookings found yet.</td>
+                        <td className="px-3 py-5 text-center text-slate-500 dark:text-slate-400" colSpan={7}>No bookings found yet.</td>
                       </tr>
                     ) : null}
                   </tbody>
                 </table>
               </div>
 
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <p className="text-slate-500">Page {clampedPage} of {totalPages}</p>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="secondary" disabled={clampedPage === 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>
-                    Previous
-                  </Button>
-                  <Button size="sm" variant="secondary" disabled={clampedPage === totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>
-                    Next
-                  </Button>
-                </div>
+              <div className="mt-4 px-1">
+                <Pagination
+                  page={clampedPage}
+                  totalPages={totalPages}
+                  totalItems={bookings.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={(p) => setPage(p)}
+                />
               </div>
             </>
           ) : null}
       </article>
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Learning Insights</h3>
+      <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Learning Insights</h3>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {Object.entries(insights.statusSummary).map(([status, count]) => (
               <div
@@ -442,15 +472,15 @@ export function BookingsSection() {
                   badgeToneClass(getStatusTone(status))
                 )}
               >
-                <p className="text-xs uppercase text-slate-400">{formatStatus(status)}</p>
-                <p className="text-lg font-semibold text-slate-800">{count}</p>
+                <p className="text-xs uppercase text-slate-400 dark:text-slate-500">{formatStatus(status)}</p>
+                <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">{count}</p>
               </div>
             ))}
             {!Object.keys(insights.statusSummary).length ? (
-              <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">No status insights yet.</div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:bg-slate-700 dark:text-slate-400">No status insights yet.</div>
             ) : null}
           </div>
-          <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">
+          <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300">
             Keep booking consistently to improve mentor matching and faster topic coverage.
           </div>
       </article>
@@ -459,30 +489,46 @@ export function BookingsSection() {
         setSelected(null);
         setDetailsError(null);
       }} className="mx-auto h-auto max-w-2xl rounded-3xl">
-        <div className="w-full bg-linear-to-br from-white to-sky-50/40 p-6">
-          <h4 className="text-2xl font-semibold text-slate-900">Session Details</h4>
-          <p className="mt-1 text-sm text-slate-500">Detailed view of selected booking session.</p>
-          {isLoadingDetails ? <p className="mt-3 text-sm text-slate-500">Loading details...</p> : null}
+        <div className="w-full bg-linear-to-br from-white to-sky-50/40 p-6 dark:from-slate-800 dark:to-slate-900">
+          <h4 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Session Details</h4>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Detailed view of selected booking session.</p>
+          {isLoadingDetails ? <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Loading details...</p> : null}
           {detailsError ? <p className="mt-3 text-sm text-rose-500">{detailsError}</p> : null}
           {selected ? (
             <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 bg-white p-3"><strong>ID:</strong> {selected.readableId}</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>ID:</strong> {selected.readableId}</div>
               <div
                 className={cn(
-                  "rounded-xl border bg-white p-3",
+                  "rounded-xl border p-3",
                   badgeToneClass(getStatusTone(selected.status))
                 )}
               >
                 <strong>Status:</strong> {formatStatus(selected.status)}
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3"><strong>Date:</strong> {selected.sessionDate || "-"}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3"><strong>Time:</strong> {formatTime(selected.startTime)} - {formatTime(selected.endTime)}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3"><strong>Duration:</strong> {selected.durationMinutes} minutes</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3"><strong>Price:</strong> ৳{selected.priceBdt}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3"><strong>Topic:</strong> {getSubjectLabel(selected)}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3"><strong>Mentor ID:</strong> {selected.mentorId || "Pending assignment"}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 md:col-span-2"><strong>Problem:</strong> {selected.problemDescription || "-"}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 md:col-span-2"><strong>Meeting Link:</strong> {selected.meetLink || "Not available yet"}</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Date:</strong> {selected.sessionDate || "-"}</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Time:</strong> {formatTime(selected.startTime)} - {formatTime(selected.endTime)}</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Duration:</strong> {selected.durationMinutes} minutes</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Price:</strong> ৳{selected.priceBdt}</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Topic:</strong> {getSubjectLabel(selected)}</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200">
+                <strong>Mentor:</strong>{" "}
+                {selected.mentorReadableId
+                  ? selected.mentorReadableId
+                  : selected.mentorId
+                    ? "Assigned"
+                    : "Pending assignment"}
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 md:col-span-2 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Problem:</strong> {selected.problemDescription || "-"}</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 md:col-span-2 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Video meeting</p>
+                <div className="mt-2">
+                  {selected.meetLink?.trim() ? (
+                    <JoinMeetingButton href={selected.meetLink} variant="full" />
+                  ) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Not available yet</p>
+                  )}
+                </div>
+              </div>
             </div>
           ) : null}
           <div className="mt-6 flex justify-end">

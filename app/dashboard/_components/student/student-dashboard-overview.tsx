@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpenCheck, BriefcaseBusiness, Cpu } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { StudentHeroSlider, type StudentHeroSlide } from "@/app/dashboard/_components/student/student-hero-slider";
@@ -8,6 +8,12 @@ import { StudentCourseTable } from "@/app/dashboard/_components/student/student-
 import { StudentLearningProgress } from "@/app/dashboard/_components/student/student-learning-progress";
 import { StudentQuickStats, type StudentStatItem } from "@/app/dashboard/_components/student/student-quick-stats";
 import { StudentUpcomingSessions } from "@/app/dashboard/_components/student/student-upcoming-sessions";
+import {
+  formatNextSessionDateLine,
+  formatNextSessionTimeRange,
+  pickNextUpcomingBooking,
+} from "@/app/dashboard/_components/student/student-session-utils";
+import { useNotifications } from "@/lib/notifications-context";
 
 type BookingRecord = {
   id: string;
@@ -117,6 +123,14 @@ export function StudentDashboardOverview() {
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [topicNames, setTopicNames] = useState<Record<string, string>>({});
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const { sessionAcceptedAt } = useNotifications();
+  const isFirstMount = useRef(true);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   async function hydrateTopicNames(items: BookingRecord[]) {
     const courseIds = Array.from(new Set(items.map((item) => item.courseId).filter(Boolean))) as string[];
@@ -195,6 +209,7 @@ export function StudentDashboardOverview() {
     }
   }
 
+  // Initial load
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       startTransition(() => {
@@ -205,43 +220,61 @@ export function StudentDashboardOverview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bookings fetch
   }, []);
 
+  // Auto-refresh when a mentor accepts this student's session (real-time via Socket.io)
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (sessionAcceptedAt === 0) return;
+    startTransition(() => {
+      void loadBookings();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionAcceptedAt]);
+
   const quickStats = useMemo<StudentStatItem[]>(() => {
     const totalMinutes = bookings.reduce((sum, item) => sum + item.durationMinutes, 0);
     const joinedCount = bookings.filter((item) => item.status.includes("completed")).length;
     const avgDuration = bookings.length ? Math.round(totalMinutes / bookings.length) : 0;
-    const upcomingCount = bookings.filter((item) => item.status.includes("pending") || item.status.includes("upcoming")).length;
+
+    const nextSession = isLoadingData ? null : pickNextUpcomingBooking(bookings, nowMs);
+
+    const nextSessionValue = isLoadingData
+      ? "Loading…"
+      : nextSession
+        ? formatNextSessionDateLine(nextSession.sessionDate)
+        : "no session found";
+
+    const nextSessionSubtitle =
+      !isLoadingData && nextSession
+        ? formatNextSessionTimeRange(nextSession.startTime, nextSession.endTime)
+        : undefined;
+
+    const nextSessionTrend = isLoadingData
+      ? "Checking your schedule…"
+      : nextSession
+        ? getReadableText(nextSession.customTopicName) ||
+          getReadableText(nextSession.topicName) ||
+          (nextSession.topicId ? topicNames[nextSession.topicId] : "") ||
+          "Upcoming session"
+        : "Book a session to get started";
+
     return [
       { label: "Total Study Time", value: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`, trend: "From your booked sessions" },
       { label: "Joined Sessions", value: String(joinedCount), trend: `${bookings.length - joinedCount} pending updates` },
       { label: "Avg Session Duration", value: `${avgDuration} min`, trend: "Auto-calculated from history" },
-      { label: "Upcoming Sessions", value: String(upcomingCount), trend: isLoadingData ? "Updating..." : "Based on booking status" },
+      { label: "Next Session", value: nextSessionValue, subtitle: nextSessionSubtitle, trend: nextSessionTrend },
     ];
-  }, [bookings, isLoadingData]);
+  }, [bookings, isLoadingData, nowMs, topicNames]);
 
-  const upcomingItems = useMemo(() => {
-    const sorted = [...bookings]
-      .filter((item) => item.status.includes("pending") || item.status.includes("upcoming"))
-      .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))
-      .slice(0, 3);
-    return sorted.map((item) => ({
-      id: item.readableId !== "N/A" ? item.readableId : item.id,
-      title:
-        getReadableText(item.customTopicName) ||
-        getReadableText(item.topicName) ||
-        getReadableText(item.topicId ? topicNames[item.topicId] : "") ||
-        "Live Session",
-      mentorId: item.mentorId || "Pending assignment",
-      time: `${item.sessionDate || "TBD"} • ${item.startTime.slice(0, 5)}-${item.endTime.slice(0, 5)}`,
-      status: "upcoming" as const,
-    }));
-  }, [bookings, topicNames]);
 
   return (
     <section className="space-y-5">
       <StudentHeroSlider slides={slides} />
       <StudentQuickStats items={quickStats} />
       <div className="grid gap-4 xl:grid-cols-2">
-        <StudentUpcomingSessions initialData={upcomingItems.length ? upcomingItems : undefined} />
+        <StudentUpcomingSessions />
         <StudentLearningProgress />
       </div>
       <StudentCourseTable />

@@ -26,7 +26,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
   const settingsActive = Boolean(settingsMenu && pathname === settingsMenu.href);
 
   return (
-    <aside className={cn("sticky top-0 h-screen border-r border-slate-700 p-4 text-slate-100 transition-all duration-300", widthClass, panelClass)}>
+    <aside className={cn("sticky top-0 flex h-screen shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-700 p-4 text-slate-100 transition-all duration-300", widthClass, panelClass)}>
       {!collapsed ? (
         <div className="mb-4 flex justify-center">
           <Link href="/" className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white p-1.5 shadow-sm transition hover:scale-[1.03]">

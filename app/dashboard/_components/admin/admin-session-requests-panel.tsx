@@ -30,6 +30,7 @@ import {
 } from "@/lib/admin-sessions-api";
 import { Button } from "@/app/components/ui/button";
 import { Modal } from "@/app/components/ui/modal";
+import { Pagination } from "@/app/components/ui/pagination";
 import { ToastCenter, type ToastAction, type ToastMessage, type ToastVariant } from "@/app/components/ui/toast-center";
 import { cn } from "@/lib/utils";
 
@@ -1403,23 +1404,14 @@ export function AdminSessionRequestsPanel() {
                 onApprove={requestApproveConfirmation}
               />
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-sm dark:border-slate-800">
-              <p className="text-slate-500">
-                Page {clampedPage} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="secondary" disabled={clampedPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                  Previous
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={clampedPage >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                </Button>
-              </div>
+            <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">
+              <Pagination
+                page={clampedPage}
+                totalPages={totalPages}
+                totalItems={rows.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={(p) => setPage(p)}
+              />
             </div>
           </>
         ) : null}

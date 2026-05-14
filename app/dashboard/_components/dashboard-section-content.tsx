@@ -7,6 +7,8 @@ import { ProfileSection } from "./profile/profile-section";
 import { SettingsSection } from "@/app/dashboard/_components/settings/settings-section";
 import { BookingsSection } from "@/app/dashboard/_components/bookings/bookings-section";
 import { StudentDashboardOverview } from "@/app/dashboard/_components/student/student-dashboard-overview";
+import { MentorDashboardOverview } from "@/app/dashboard/_components/mentor/mentor-dashboard-overview";
+import { MentorSessionRequests } from "@/app/dashboard/_components/mentor/mentor-session-requests";
 import type { UserRole } from "@/lib/mock-auth";
 
 type DashboardSectionContentProps = {
@@ -17,6 +19,14 @@ type DashboardSectionContentProps = {
 export function DashboardSectionContent({ section, role }: DashboardSectionContentProps) {
   if (role === "student" && section === "dashboard") {
     return <StudentDashboardOverview />;
+  }
+
+  if (role === "teacher" && section === "dashboard") {
+    return <MentorDashboardOverview />;
+  }
+
+  if (role === "teacher" && section === "session-requests") {
+    return <MentorSessionRequests />;
   }
 
   if (section === "live-session") {

@@ -11,6 +11,13 @@ function buildBackendUrl(pathSegments: string[], search: string) {
   return `${base}/${path}${search}`;
 }
 
+function errorEnvelope(status: number, message: string, code = "UPSTREAM_ERROR") {
+  return NextResponse.json(
+    { success: false, error: { code, message, statusCode: status } },
+    { status }
+  );
+}
+
 async function proxy(request: NextRequest, pathSegments: string[]) {
   const backendUrl = buildBackendUrl(pathSegments, request.nextUrl.search);
   const headers = new Headers(request.headers);
@@ -18,13 +25,50 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
   headers.delete("content-length");
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
-  const body = hasBody ? await request.arrayBuffer() : undefined;
-  const upstream = await fetch(backendUrl, {
-    method: request.method,
-    headers,
-    body,
-    redirect: "manual",
-  });
+
+  let body: ArrayBuffer | undefined;
+  try {
+    body = hasBody ? await request.arrayBuffer() : undefined;
+  } catch {
+    return errorEnvelope(400, "Failed to read request body.");
+  }
+
+  // Clean up hop-by-hop / encoding headers that confuse some backends
+  headers.delete("transfer-encoding");
+  headers.delete("connection");
+  headers.delete("keep-alive");
+  headers.delete("te");
+  headers.delete("trailer");
+  headers.delete("upgrade");
+  headers.delete("proxy-authorization");
+  headers.delete("proxy-authenticate");
+  // Restore accurate content-length now that we have the full buffer
+  if (body !== undefined) {
+    headers.set("content-length", String(body.byteLength));
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(backendUrl, {
+      method: request.method,
+      headers,
+      body,
+      redirect: "manual",
+    });
+  } catch (err) {
+    // Backend is down, crashed, or closed the socket before responding
+    const cause = err instanceof Error ? err.message : "Unknown network error";
+    const isDown =
+      cause.includes("ECONNREFUSED") ||
+      cause.includes("ENOTFOUND") ||
+      cause.includes("other side closed") ||
+      cause.includes("UND_ERR_SOCKET");
+
+    if (isDown) {
+      return errorEnvelope(503, "The backend server is unavailable. Please try again shortly.", "SERVICE_UNAVAILABLE");
+    }
+    return errorEnvelope(502, `Upstream error: ${cause}`, "BAD_GATEWAY");
+  }
 
   const responseHeaders = new Headers(upstream.headers);
   responseHeaders.delete("content-encoding");

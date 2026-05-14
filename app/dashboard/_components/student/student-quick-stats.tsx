@@ -1,6 +1,8 @@
 export type StudentStatItem = {
   label: string;
   value: string;
+  /** Optional second line (e.g. time range under date for Next Session). */
+  subtitle?: string;
   trend: string;
 };
 
@@ -25,6 +27,9 @@ export function StudentQuickStats({ items = statItems }: StudentQuickStatsProps)
         >
           <p className="text-xs uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">{item.label}</p>
           <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">{item.value}</p>
+          {item.subtitle ? (
+            <p className="mt-1 text-sm font-normal text-slate-500 dark:text-slate-400">{item.subtitle}</p>
+          ) : null}
           <p className="mt-1 text-xs text-brand-primary">{item.trend}</p>
         </article>
       ))}

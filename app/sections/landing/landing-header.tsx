@@ -18,6 +18,7 @@ type LandingHeaderProps = {
 const navItems: Array<{ label: string; href: string; isAction?: boolean }> = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
+  { label: "Become a Mentor", href: "/become-a-mentor" },
   { label: "Contact", href: "#", isAction: true },
 ];
 

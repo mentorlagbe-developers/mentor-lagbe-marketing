@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { CloseIcon } from "@/app/components/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -48,30 +48,76 @@ const innerMaxHeightGlass = "max-h-[min(96dvh,calc(100dvh-0.35rem))]";
 /** When callers omit max-w-*, keep a readable default and never exceed the screen. */
 const defaultMaxWidth = "max-w-[min(56rem,calc(100vw-1.5rem))]";
 
+function getDocumentScrollTop(): number {
+  if (typeof window === "undefined") return 0;
+  const root = document.scrollingElement ?? document.documentElement;
+  const y = root.scrollTop;
+  if (y > 0) return y;
+  return window.scrollY || document.documentElement.scrollTop || 0;
+}
+
 export function Modal({ open, onClose, children, className, variant = "solid" }: ModalProps) {
-  useEffect(() => {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useLayoutEffect(() => {
     if (!open) {
       return;
     }
 
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    const previousBodyOverflow = document.body.style.overflow;
+    const scrollY = getDocumentScrollTop();
+    const body = document.body;
+
+    // Preserve inline styles so we can restore exactly
+    const previousBody = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      paddingRight: body.style.paddingRight,
+    };
+
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
       }
     };
 
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
+    // Freeze layout without touching html overflow — avoids sticky sidebar / flex reflow
+    // glitches when the scrollbar disappears (empty band at top of aside, etc.).
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.documentElement.style.overflow = previousHtmlOverflow;
-      document.body.style.overflow = previousBodyOverflow;
+      body.style.position = previousBody.position;
+      body.style.top = previousBody.top;
+      body.style.left = previousBody.left;
+      body.style.right = previousBody.right;
+      body.style.width = previousBody.width;
+      body.style.overflow = previousBody.overflow;
+      body.style.paddingRight = previousBody.paddingRight;
       window.removeEventListener("keydown", onKeyDown);
+      // `behavior: "auto"` avoids fighting `html { scroll-behavior: smooth }` on restore.
+      window.scrollTo({ left: 0, top: scrollY, behavior: "auto" });
+      const root = document.scrollingElement ?? document.documentElement;
+      if (root.scrollTop !== scrollY) {
+        root.scrollTop = scrollY;
+      }
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) {
     return null;
@@ -80,10 +126,10 @@ export function Modal({ open, onClose, children, className, variant = "solid" }:
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-3 py-6 backdrop-blur-[2px] sm:px-5",
+        "fixed inset-0 z-50 flex flex-row justify-center bg-slate-900/40 px-3 py-10 backdrop-blur-[2px] sm:px-5 sm:py-12",
         variant === "glass"
-          ? "overflow-hidden overscroll-none"
-          : "overflow-y-auto overscroll-contain"
+          ? "items-center overflow-hidden overscroll-none"
+          : "items-start overflow-y-auto overscroll-contain"
       )}
     >
       <button

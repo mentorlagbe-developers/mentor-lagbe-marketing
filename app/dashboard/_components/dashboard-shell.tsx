@@ -11,6 +11,7 @@ import { WhatsAppChatWidget } from "@/app/dashboard/_components/whatsapp-chat-wi
 import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import type { AuthUser } from "@/lib/mock-auth";
 import { useAuth } from "@/lib/use-auth";
+import { NotificationsProvider } from "@/lib/notifications-context";
 
 type DashboardShellProps = { children: React.ReactNode };
 
@@ -31,23 +32,25 @@ export function DashboardShell({ children }: DashboardShellProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-      <DashboardSidebar role={activeRole} collapsed={isSidebarCollapsed} />
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <ProfileStatusProvider role={activeRole}>
-          <DashboardHeader
-            role={activeRole}
-            user={user}
-            collapsed={isSidebarCollapsed}
-            onToggleSidebar={() => setIsSidebarCollapsed((state) => !state)}
-            onLogout={() => router.push("/?auth=login")}
-          />
-          <ProfileCompletionBanner />
-          <main className="flex-1 p-6">{children}</main>
-          <DashboardFooter />
-        </ProfileStatusProvider>
+    <NotificationsProvider>
+      <div className="flex min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+        <DashboardSidebar role={activeRole} collapsed={isSidebarCollapsed} />
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <ProfileStatusProvider role={activeRole}>
+            <DashboardHeader
+              role={activeRole}
+              user={user}
+              collapsed={isSidebarCollapsed}
+              onToggleSidebar={() => setIsSidebarCollapsed((state) => !state)}
+              onLogout={() => router.push("/?auth=login")}
+            />
+            <ProfileCompletionBanner />
+            <main className="flex-1 p-6">{children}</main>
+            <DashboardFooter />
+          </ProfileStatusProvider>
+        </div>
+        <WhatsAppChatWidget />
       </div>
-      <WhatsAppChatWidget />
-    </div>
+    </NotificationsProvider>
   );
 }

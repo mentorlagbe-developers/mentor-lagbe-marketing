@@ -2,12 +2,14 @@
 
 import { CalendarClock, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
 import { apiFetch } from "@/lib/api";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Button } from "@/app/components/ui/button";
+import { JoinMeetingButton } from "@/app/components/ui/join-meeting-button";
 import { Modal } from "@/app/components/ui/modal";
+import { useNotifications } from "@/lib/notifications-context";
 
 type BookingRecord = {
   id: string;
@@ -22,6 +24,7 @@ type BookingRecord = {
   topicId?: string | null;
   topicName?: string | null;
   mentorId?: string | null;
+  meetLink?: string;
 };
 
 function isUuidLike(value: string) {
@@ -76,9 +79,20 @@ function getDirectTopicName(item: Record<string, unknown>) {
   return "";
 }
 
+function to12h(raw: string): string {
+  if (!raw) return "—";
+  const [h, m] = raw.slice(0, 5).split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return raw.slice(0, 5);
+  const ap = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ap}`;
+}
+
 export function LiveSessionOverview() {
   const router = useRouter();
   const { needsCompletionForLiveSession } = useProfileStatus();
+  const { sessionAcceptedAt } = useNotifications();
+  const isFirstMount = useRef(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"bkash" | "nagad">("bkash");
   const [trxId, setTrxId] = useState("");
@@ -152,6 +166,12 @@ export function LiveSessionOverview() {
         topicId: typeof item.topicId === "string" ? item.topicId : "",
         topicName: getDirectTopicName(item),
         mentorId: typeof item.mentorId === "string" ? item.mentorId : "",
+        meetLink:
+          typeof item.meetLink === "string"
+            ? item.meetLink
+            : typeof item.meet_link === "string"
+              ? item.meet_link
+              : "",
       }));
       setBookings(normalized);
       await hydrateTopicNames(normalized);
@@ -161,6 +181,7 @@ export function LiveSessionOverview() {
     }
   }
 
+  // Mount-only initial fetch
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       startTransition(() => {
@@ -168,29 +189,55 @@ export function LiveSessionOverview() {
       });
     });
     return () => cancelAnimationFrame(id);
-    // Intentionally mount-only: load bookings once when this view mounts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadBookings is stable enough for mount fetch
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only fetch
   }, []);
 
+  // Auto-refresh when a mentor accepts this student's session
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (sessionAcceptedAt === 0) return;
+    startTransition(() => {
+      void loadBookings();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionAcceptedAt]);
+
   const liveSessionStats = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
     const total = bookings.length;
     const cancelled = bookings.filter((item) => item.status.includes("cancel")).length;
-    const upcoming = bookings.filter((item) => item.status.includes("pending") || item.status.includes("upcoming")).length;
+    const upcoming = bookings.filter((item) => {
+      const s = item.status.toLowerCase();
+      return (
+        item.sessionDate >= todayStr &&
+        (s.includes("accepted") || s.includes("confirmed") || s.includes("scheduled"))
+      );
+    }).length;
     const completed = bookings.filter((item) => item.status.includes("completed")).length;
     const attendance = total ? `${Math.round((completed / total) * 100)}%` : "0%";
     return [
       { label: "Total Live Sessions Taken", value: String(total), trend: "Across all bookings" },
       { label: "Canceled Sessions", value: String(cancelled), trend: "Auto-synced from booking status" },
-      { label: "Upcoming Sessions", value: String(upcoming), trend: "Updated from backend" },
+      { label: "Confirmed Upcoming", value: String(upcoming), trend: "Accepted by a mentor, today or later" },
       { label: "Attendance Rate", value: attendance, trend: "Completed vs total sessions" },
     ];
   }, [bookings]);
 
   const upcomingLiveSessions = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
     return [...bookings]
-      .filter((item) => item.status.includes("pending") || item.status.includes("upcoming"))
+      .filter((item) => {
+        const s = item.status.toLowerCase();
+        // Only show future sessions that have been accepted/confirmed/scheduled
+        return (
+          item.sessionDate >= todayStr &&
+          (s.includes("accepted") || s.includes("confirmed") || s.includes("scheduled"))
+        );
+      })
       .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))
-      .slice(0, 3)
       .map((item, index) => ({
         id: item.id,
         sessionReadableId: item.readableId || "N/A",
@@ -199,9 +246,11 @@ export function LiveSessionOverview() {
           getReadableText(item.topicName) ||
           getReadableText(item.topicId ? topicNames[item.topicId] : "") ||
           `Session ${index + 1}`,
-        mentorId: item.mentorId || "Pending mentor assignment",
-        time: `${item.sessionDate || "TBD"}, ${item.startTime.slice(0, 5)}-${item.endTime.slice(0, 5)}`,
-        room: item.readableId || "N/A",
+        mentorId: item.mentorId || "—",
+        meetLink: item.meetLink ?? "",
+        time: item.sessionDate
+          ? `${item.sessionDate} · ${to12h(item.startTime)} – ${to12h(item.endTime)}`
+          : "TBD",
       }));
   }, [bookings, topicNames]);
 
@@ -245,7 +294,7 @@ export function LiveSessionOverview() {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Meeting Session Link</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              This link will be active after mentor assigns link and admin confirms your payment.
+              Join appears here when your mentor adds a valid Google Meet link and your access is enabled.
             </p>
           </div>
           {!canJoinMeeting ? (
@@ -254,16 +303,11 @@ export function LiveSessionOverview() {
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Assigned Link</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Video meeting</p>
           {canJoinMeeting ? (
-            <a
-              href={meetingLink}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand-primary hover:underline"
-            >
-              Open Live Meeting Link
-            </a>
+            <div className="mt-2">
+              <JoinMeetingButton href={meetingLink} variant="full" />
+            </div>
           ) : (
             <div className="mt-2 space-y-2">
               <p className="text-sm text-rose-500">
@@ -287,27 +331,39 @@ export function LiveSessionOverview() {
                 <div className="space-y-1">
                   <p className="font-semibold text-slate-800 dark:text-slate-100">{session.course}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Session ID: {session.sessionReadableId} • Mentor ID: {session.mentorId}
+                    Session ID: {session.sessionReadableId}
                   </p>
                   <p className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                     <CalendarClock className="h-3.5 w-3.5" />
                     {session.time}
                   </p>
                 </div>
-                <button
-                  disabled={needsCompletionForLiveSession}
-                  className="inline-flex items-center gap-1 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Video className="h-3.5 w-3.5" />
-                  Join Live
-                </button>
+                {needsCompletionForLiveSession ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center gap-1 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white opacity-60 cursor-not-allowed"
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                    Join meeting
+                  </button>
+                ) : session.meetLink?.trim() ? (
+                  <JoinMeetingButton href={session.meetLink} variant="compact" />
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                    <Video className="h-3.5 w-3.5" />
+                    Awaiting link
+                  </span>
+                )}
               </div>
             </article>
           ))}
           {!upcomingLiveSessions.length ? (
-            <p className="rounded-xl border border-slate-200 px-3 py-4 text-sm text-slate-500 dark:border-slate-700">
-              No upcoming live sessions found.
-            </p>
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 px-4 py-8 text-center dark:border-slate-700">
+              <CalendarClock className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No confirmed sessions yet</p>
+              <p className="text-xs text-slate-400">Sessions will appear here once a mentor accepts your request.</p>
+            </div>
           ) : null}
         </div>
       </section>
