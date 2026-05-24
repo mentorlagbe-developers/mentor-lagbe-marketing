@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Eye, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/app/components/ui/button";
-import { JoinMeetingButton } from "@/app/components/ui/join-meeting-button";
 import { Modal } from "@/app/components/ui/modal";
+import { BookingDetailPanel } from "@/app/dashboard/_components/bookings/booking-detail-panel";
+import { useNotifications } from "@/lib/notifications-context";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/app/components/ui/pagination";
 import {
@@ -167,6 +169,8 @@ function daysAgo(dateString?: string) {
 }
 
 export function BookingsSection() {
+  const searchParams = useSearchParams();
+  const { sessionAcceptedAt, sessionRefreshAt } = useNotifications();
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -270,6 +274,25 @@ export function BookingsSection() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadBookings]);
+
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (!focus) return;
+    void handleViewDetails(focus);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (sessionAcceptedAt === 0 && sessionRefreshAt === 0) return;
+    const selectedId = selected?.id;
+    const timer = window.setTimeout(() => {
+      void loadBookings();
+      if (selectedId) {
+        void handleViewDetails(selectedId);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionAcceptedAt, sessionRefreshAt]);
 
   const getSubjectLabel = useCallback((booking: BookingRecord) => {
     return (
@@ -488,48 +511,27 @@ export function BookingsSection() {
       <Modal open={Boolean(selected) || isLoadingDetails || Boolean(detailsError)} onClose={() => {
         setSelected(null);
         setDetailsError(null);
-      }} className="mx-auto h-auto max-w-2xl rounded-3xl">
+      }} className="mx-auto h-auto max-w-3xl rounded-3xl">
         <div className="w-full bg-linear-to-br from-white to-sky-50/40 p-6 dark:from-slate-800 dark:to-slate-900">
           <h4 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Session Details</h4>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Detailed view of selected booking session.</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Payment, join access, and session info for this booking.
+          </p>
           {isLoadingDetails ? <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Loading details...</p> : null}
           {detailsError ? <p className="mt-3 text-sm text-rose-500">{detailsError}</p> : null}
           {selected ? (
-            <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>ID:</strong> {selected.readableId}</div>
-              <div
-                className={cn(
-                  "rounded-xl border p-3",
-                  badgeToneClass(getStatusTone(selected.status))
-                )}
-              >
-                <strong>Status:</strong> {formatStatus(selected.status)}
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Date:</strong> {selected.sessionDate || "-"}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Time:</strong> {formatTime(selected.startTime)} - {formatTime(selected.endTime)}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Duration:</strong> {selected.durationMinutes} minutes</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Price:</strong> ৳{selected.priceBdt}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Topic:</strong> {getSubjectLabel(selected)}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200">
-                <strong>Mentor:</strong>{" "}
-                {selected.mentorReadableId
-                  ? selected.mentorReadableId
-                  : selected.mentorId
-                    ? "Assigned"
-                    : "Pending assignment"}
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 md:col-span-2 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200"><strong>Problem:</strong> {selected.problemDescription || "-"}</div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 md:col-span-2 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-200">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Video meeting</p>
-                <div className="mt-2">
-                  {selected.meetLink?.trim() ? (
-                    <JoinMeetingButton href={selected.meetLink} variant="full" />
-                  ) : (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Not available yet</p>
-                  )}
-                </div>
-              </div>
-            </div>
+            <BookingDetailPanel
+              className="mt-4"
+              bookingId={selected.id}
+              topicLabel={getSubjectLabel(selected)}
+              onClose={() => {
+                setSelected(null);
+                setDetailsError(null);
+              }}
+              onUpdated={() => {
+                void loadBookings();
+              }}
+            />
           ) : null}
           <div className="mt-6 flex justify-end">
             <Button variant="secondary" onClick={() => {

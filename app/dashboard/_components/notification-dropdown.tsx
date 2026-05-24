@@ -117,7 +117,9 @@ function NotificationDetailModal({
   function handleNavigate() {
     if (!notification.isRead) onMarkRead(notification.id);
     onClose(); // always close before navigating
-    if (notification.referenceType === "session") {
+    if (notification.referenceType === "session" && notification.referenceId) {
+      router.push(`/dashboard/bookings?focus=${encodeURIComponent(notification.referenceId)}`);
+    } else if (notification.referenceType === "session") {
       router.push("/dashboard/bookings");
     }
   }

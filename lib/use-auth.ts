@@ -74,9 +74,18 @@ export function useAuth() {
     await hydrateOnce();
   }, []);
 
-  const register = useCallback(async (payload: { email: string; password: string; fullName: string; phone?: string }) => {
-    return authApi.register(payload);
-  }, []);
+  const register = useCallback(
+    async (payload: {
+      email: string;
+      password: string;
+      fullName: string;
+      phone: string;
+      whatsappOptIn: boolean;
+    }) => {
+      return authApi.register(payload);
+    },
+    []
+  );
 
   const verifyEmail = useCallback(async (payload: { userId: string; otp: string }) => {
     return authApi.verifyEmail(payload);

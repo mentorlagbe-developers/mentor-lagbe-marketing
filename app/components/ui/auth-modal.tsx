@@ -41,6 +41,7 @@ type RegisterFormValues = {
   fullName: string;
   email: string;
   phone: string;
+  whatsappOptIn: boolean;
   password: string;
   confirmPassword: string;
 };
@@ -54,6 +55,7 @@ const registerInitialValues: RegisterFormValues = {
   fullName: "",
   email: "",
   phone: "",
+  whatsappOptIn: true,
   password: "",
   confirmPassword: "",
 };
@@ -339,7 +341,9 @@ export function AuthModal({
       else if (values.fullName.trim().length < 2 || values.fullName.trim().length > 150) errors.fullName = "Full name must be between 2 and 150.";
       if (!values.email.trim()) errors.email = "Email is required.";
       else if (!isValidEmail(values.email)) errors.email = "Enter a valid email.";
-      if (values.phone.trim() && !isValidPhoneNumber(values.phone)) errors.phone = "Phone must be 014... or +88014... format.";
+      if (!values.phone.trim()) errors.phone = "WhatsApp phone number is required.";
+      else if (!isValidPhoneNumber(values.phone)) errors.phone = "Phone must be 014... or +88014... format.";
+      if (!values.whatsappOptIn) errors.whatsappOptIn = "WhatsApp consent is required to receive your OTP.";
       if (!values.password) errors.password = "Password is required.";
       else if (!isStrongPassword(values.password)) errors.password = "Password must be 8+ chars with 1 uppercase and 1 number.";
       if (!values.confirmPassword) errors.confirmPassword = "Confirm password is required.";
@@ -351,7 +355,8 @@ export function AuthModal({
         const data = await auth.register({
           fullName: values.fullName.trim(),
           email: values.email.trim().toLowerCase(),
-          phone: values.phone.trim() ? toBdPhoneE164(values.phone) : undefined,
+          phone: toBdPhoneE164(values.phone),
+          whatsappOptIn: values.whatsappOptIn,
           password: values.password,
         });
         const registerOtp = extractOtpForDevLog(data);
@@ -365,10 +370,8 @@ export function AuthModal({
           "";
         setVerifyUserId(nextUserId);
         setForgotEmail(values.email.trim().toLowerCase());
-        // OTP verification is temporarily disabled for registration flow.
-        // Keep verify panel logic in codebase for easy re-enable later.
-        setActivePanel("login");
-        pushToast("success", "Registration successful. Please login.");
+        setActivePanel("verify");
+        pushToast("success", "Check WhatsApp for your OTP. Enter the 6-digit code to continue.");
       } catch (error) {
         if (error instanceof ApiError) {
           applyValidationDetails(error, helpers.setFieldError);
@@ -514,11 +517,24 @@ export function AuthModal({
                       <FieldError message={registerForm.touched.email ? registerForm.errors.email : undefined} />
                     </div>
                     <div className="space-y-2">
-                      <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">WhatsApp Phone (optional)</span>
+                      <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">WhatsApp Phone</span>
                       <TextInput id="register-phone" name="phone" type="tel" placeholder="014XXXXXXXX" value={registerForm.values.phone} onChange={registerForm.handleChange} onBlur={registerForm.handleBlur} hasError={Boolean(registerForm.touched.phone && registerForm.errors.phone)} />
                       <FieldError message={registerForm.touched.phone ? registerForm.errors.phone : undefined} />
                     </div>
                   </div>
+                  <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-slate-600 dark:bg-slate-800/50">
+                    <input
+                      type="checkbox"
+                      name="whatsappOptIn"
+                      checked={registerForm.values.whatsappOptIn}
+                      onChange={registerForm.handleChange}
+                      className="mt-0.5"
+                    />
+                    <span className="text-slate-600 dark:text-slate-300">
+                      I agree to receive OTP and session updates on WhatsApp. Password reset stays email-only.
+                    </span>
+                  </label>
+                  <FieldError message={registerForm.touched.whatsappOptIn ? registerForm.errors.whatsappOptIn : undefined} />
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Password" htmlFor="register-password">
                       <PasswordInput id="register-password" name="password" placeholder="Create a strong password" value={registerForm.values.password} onChange={registerForm.handleChange} onBlur={registerForm.handleBlur} hasError={Boolean(registerForm.touched.password && registerForm.errors.password)} />
@@ -561,9 +577,13 @@ export function AuthModal({
                 </button>
 
                 <div className="space-y-2 text-center">
-                  <h3 className="text-4xl font-semibold text-slate-900">Verify Phone Number</h3>
-                  <p className="text-base text-slate-500">Enter the 6-digit code sent to</p>
-                  <p className="text-xl font-medium text-slate-900">{forgotEmail || "your email"}</p>
+                  <h3 className="text-4xl font-semibold text-slate-900">Verify on WhatsApp</h3>
+                  <p className="text-base text-slate-500">Enter the 6-digit code sent to your WhatsApp number</p>
+                  <p className="text-xl font-medium text-slate-900">
+                    {registerForm.values.phone.trim()
+                      ? toBdPhoneE164(registerForm.values.phone)
+                      : "your phone"}
+                  </p>
                 </div>
 
                 <div className="flex justify-center gap-2">
@@ -607,8 +627,8 @@ export function AuthModal({
                           if (resendOtp) {
                             console.info("[DEV OTP][resend]", resendOtp);
                           }
-                          setResendWait(60);
-                          pushToast("success", "OTP sent again.");
+                          setResendWait(180);
+                          pushToast("success", "OTP sent again on WhatsApp.");
                         } catch (error) {
                           if (error instanceof ApiError) {
                             if (error.code === "RESEND_TOO_SOON") {
@@ -631,7 +651,7 @@ export function AuthModal({
                     onClick={() => openView("register")}
                     className="text-sm font-medium text-sky-600 hover:text-sky-700"
                   >
-                    Change Email
+                    Change phone number
                   </button>
                 </div>
 

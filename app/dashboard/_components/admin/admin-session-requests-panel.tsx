@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormik } from "formik";
 import {
-  ArrowLeft,
   CalendarClock,
+  Check,
   CheckCircle2,
   ClipboardList,
   Eye,
@@ -13,11 +13,19 @@ import {
   RefreshCw,
   ShieldAlert,
   UserRound,
+  X,
   XCircle,
 } from "lucide-react";
+import {
+  approveAdminPayment,
+  fetchPendingPaymentsBySessionId,
+  rejectAdminPayment,
+  resolvePendingPaymentForSession,
+  type PendingPayment,
+  type SessionPendingPayment,
+} from "@/lib/admin-payments-api";
 import { ApiError } from "@/lib/api";
 import {
-  approveAdminSession,
   bucketAdminSessionStatus,
   getAdminSession,
   getAdminSessionEligibleMentors,
@@ -805,6 +813,54 @@ function SessionDetailOverview({ detail }: { detail: Record<string, unknown> }) 
   );
 }
 
+function PaymentReviewActions({
+  payment,
+  busy,
+  rejectReason,
+  onRejectReasonChange,
+  onApprove,
+  onReject,
+  compact,
+}: {
+  payment: SessionPendingPayment;
+  busy: boolean;
+  rejectReason: string;
+  onRejectReasonChange: (value: string) => void;
+  onApprove: () => void;
+  onReject: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/50 dark:bg-amber-950/30", compact && "p-3")}>
+      <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Payment review</p>
+      <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-200/90">
+        ৳{payment.amountBdt || "—"} · {payment.paymentMethod || "—"} · TrxID {payment.trxId || "—"}
+      </p>
+      {!compact ? (
+        <label className="mt-3 block text-sm">
+          <span className="font-medium text-slate-700 dark:text-slate-300">Rejection reason (optional)</span>
+          <input
+            value={rejectReason}
+            onChange={(e) => onRejectReasonChange(e.target.value)}
+            placeholder="Shown to student if rejected"
+            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm dark:border-slate-600 dark:bg-slate-900"
+          />
+        </label>
+      ) : null}
+      <div className={cn("flex flex-wrap gap-2", compact ? "mt-3" : "mt-4")}>
+        <Button type="button" size="sm" disabled={busy} onClick={onApprove}>
+          <Check className="mr-1.5 h-4 w-4" />
+          Approve payment
+        </Button>
+        <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={onReject}>
+          <X className="mr-1.5 h-4 w-4" />
+          Reject payment
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function extractPaymentBlock(detail: Record<string, unknown>): Record<string, unknown> | null {
   const pay = detail.payment ?? detail.paymentDetails ?? detail.paymentInfo ?? detail.billing;
   if (pay && typeof pay === "object" && !Array.isArray(pay)) return pay as Record<string, unknown>;
@@ -899,13 +955,19 @@ function AdminSessionsTable({
   emptyMessage,
   onView,
   onEdit,
-  onApprove,
+  onApprovePayment,
+  onRejectPayment,
+  busyPaymentId,
+  pendingBySessionId,
 }: {
   rows: AdminSessionRow[];
   emptyMessage: string;
   onView: (row: AdminSessionRow) => void;
   onEdit: (row: AdminSessionRow) => void;
-  onApprove: (row: AdminSessionRow) => void;
+  onApprovePayment: (row: AdminSessionRow, payment: SessionPendingPayment) => void;
+  onRejectPayment: (row: AdminSessionRow, payment: SessionPendingPayment) => void;
+  busyPaymentId: string | null;
+  pendingBySessionId: Map<string, PendingPayment>;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -921,7 +983,10 @@ function AdminSessionsTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const pendingPayment = resolvePendingPaymentForSession(row.raw, row.id, pendingBySessionId);
+            const paymentBusy = Boolean(pendingPayment && busyPaymentId === pendingPayment.id);
+            return (
             <tr key={row.id} className={SESSION_TABLE_ROW}>
               <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{row.readableId}</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatSessionScheduleDate(row)}</td>
@@ -954,19 +1019,35 @@ function AdminSessionsTable({
                   >
                     <PencilLine className="h-4 w-4" />
                   </button>
-                  <button
-                    type="button"
-                    title="Approve"
-                    aria-label="Approve session"
-                    className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-600 dark:hover:bg-slate-800"
-                    onClick={() => onApprove(row)}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </button>
+                  {pendingPayment ? (
+                    <>
+                      <button
+                        type="button"
+                        title="Approve payment"
+                        aria-label="Approve payment"
+                        disabled={paymentBusy}
+                        className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+                        onClick={() => onApprovePayment(row, pendingPayment)}
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Reject payment"
+                        aria-label="Reject payment"
+                        disabled={paymentBusy}
+                        className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+                        onClick={() => onRejectPayment(row, pendingPayment)}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </td>
             </tr>
-          ))}
+          );
+          })}
           {!rows.length ? (
             <tr>
               <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
@@ -1001,6 +1082,9 @@ export function AdminSessionRequestsPanel() {
   const [mainTab, setMainTab] = useState<MainTab>("overview");
   const [sessionTab, setSessionTab] = useState<SessionDetailTab>("overview");
   const [mentorDetail, setMentorDetail] = useState<Record<string, unknown> | null>(null);
+  const [busyPaymentId, setBusyPaymentId] = useState<string | null>(null);
+  const [paymentRejectReason, setPaymentRejectReason] = useState("");
+  const [pendingBySessionId, setPendingBySessionId] = useState<Map<string, PendingPayment>>(new Map());
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const dismissToast = useCallback((toastId: number) => {
@@ -1041,11 +1125,26 @@ export function AdminSessionRequestsPanel() {
     [dismissToast]
   );
 
+  const loadPendingPayments = useCallback(async () => {
+    try {
+      const map = await fetchPendingPaymentsBySessionId();
+      setPendingBySessionId(map);
+      return map;
+    } catch {
+      setPendingBySessionId(new Map());
+      return new Map<string, PendingPayment>();
+    }
+  }, []);
+
   const loadList = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const { rows: next, statsComputed } = await listAdminSessions({ limit: ADMIN_SESSIONS_LIST_MAX_LIMIT });
+      const [sessionsResult] = await Promise.all([
+        listAdminSessions({ limit: ADMIN_SESSIONS_LIST_MAX_LIMIT }),
+        loadPendingPayments(),
+      ]);
+      const { rows: next, statsComputed } = sessionsResult;
       setRows(next);
       setStats(statsComputed);
       setPage(1);
@@ -1055,7 +1154,7 @@ export function AdminSessionRequestsPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadPendingPayments]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -1069,7 +1168,11 @@ export function AdminSessionRequestsPanel() {
     setDetail(null);
     setMentors([]);
     try {
-      const [d, m] = await Promise.all([getAdminSession(sessionId), getAdminSessionEligibleMentors(sessionId)]);
+      const [d, m] = await Promise.all([
+        getAdminSession(sessionId),
+        getAdminSessionEligibleMentors(sessionId),
+        loadPendingPayments(),
+      ]);
       setDetail(d);
       setMentors(m);
     } catch (e) {
@@ -1077,7 +1180,7 @@ export function AdminSessionRequestsPanel() {
     } finally {
       setDetailLoading(false);
     }
-  }, []);
+  }, [loadPendingPayments]);
 
   const openSessionDetail = useCallback(
     (sessionId: string) => {
@@ -1130,178 +1233,99 @@ export function AdminSessionRequestsPanel() {
     },
   });
 
-  const executeApprove = useCallback(
-    async (row: AdminSessionRow) => {
-      setActionMessage(null);
-      try {
-        await approveAdminSession(row.id);
-        pushToast("success", `Session ${row.readableId} approved.`);
-        if (detailId === row.id) void loadDetail(row.id);
-        await loadList();
-      } catch (e) {
-        pushToast(
-          "danger",
-          e instanceof ApiError ? e.message : "Approve failed. If the API uses a different action, adjust the request."
-        );
+  const resolvePaymentId = useCallback(
+    (paymentId: string, sessionId?: string) => {
+      if (sessionId) {
+        const fromMap = pendingBySessionId.get(sessionId);
+        if (fromMap?.id) return fromMap.id;
       }
+      return paymentId;
     },
-    [detailId, loadDetail, loadList, pushToast]
+    [pendingBySessionId],
   );
 
-  const requestApproveConfirmation = useCallback(
-    (row: AdminSessionRow) => {
-      pushToast("warning", `Approve session ${row.readableId}? This may notify the student and mentor.`, {
+  const runApprovePayment = useCallback(
+    async (paymentId: string, sessionId?: string) => {
+      const resolvedId = resolvePaymentId(paymentId, sessionId);
+      setBusyPaymentId(resolvedId);
+      try {
+        await approveAdminPayment(resolvedId);
+        pushToast("success", "Payment approved. The student can join when the session is ready.");
+        if (sessionId && detailId === sessionId) void loadDetail(sessionId);
+        await loadList();
+      } catch (e) {
+        pushToast("danger", e instanceof ApiError ? e.message : "Payment approval failed.");
+      } finally {
+        setBusyPaymentId(null);
+      }
+    },
+    [detailId, loadDetail, loadList, pushToast, resolvePaymentId]
+  );
+
+  const runRejectPayment = useCallback(
+    async (paymentId: string, reason: string, sessionId?: string) => {
+      const resolvedId = resolvePaymentId(paymentId, sessionId);
+      setBusyPaymentId(resolvedId);
+      try {
+        await rejectAdminPayment(resolvedId, reason);
+        pushToast("success", "Payment rejected. The student has been notified.");
+        setPaymentRejectReason("");
+        if (sessionId && detailId === sessionId) void loadDetail(sessionId);
+        await loadList();
+      } catch (e) {
+        pushToast("danger", e instanceof ApiError ? e.message : "Payment rejection failed.");
+      } finally {
+        setBusyPaymentId(null);
+      }
+    },
+    [detailId, loadDetail, loadList, pushToast, resolvePaymentId]
+  );
+
+  const handleTableApprovePayment = useCallback(
+    (row: AdminSessionRow, payment: SessionPendingPayment) => {
+      pushToast("warning", `Approve payment for ${row.readableId}? (৳${payment.amountBdt || "—"})`, {
         actions: [
           { label: "Cancel", variant: "secondary", onClick: () => {} },
-          { label: "Approve", variant: "primary", onClick: () => void executeApprove(row) },
+          { label: "Approve payment", variant: "primary", onClick: () => void runApprovePayment(payment.id, row.id) },
         ],
       });
     },
-    [executeApprove, pushToast]
+    [pushToast, runApprovePayment]
   );
 
+  const handleTableRejectPayment = useCallback(
+    (row: AdminSessionRow, payment: SessionPendingPayment) => {
+      const reason = window.prompt(
+        `Reject payment for ${row.readableId}?\nReason (shown to student):`,
+        paymentRejectReason || "Payment could not be verified."
+      );
+      if (reason === null) return;
+      void runRejectPayment(payment.id, reason, row.id);
+    },
+    [paymentRejectReason, runRejectPayment]
+  );
+
+  const closeSessionView = useCallback(() => {
+    setDetailId(null);
+    setDetail(null);
+    setMentors([]);
+    setDetailError(null);
+    setMentorDetail(null);
+    setSessionTab("overview");
+    setPaymentRejectReason("");
+  }, []);
+
   const paymentBlock = detail ? extractPaymentBlock(detail) : null;
+  const detailPendingPayment = useMemo(
+    () => (detail && detailId ? resolvePendingPaymentForSession(detail, detailId, pendingBySessionId) : null),
+    [detail, detailId, pendingBySessionId]
+  );
+  const detailPaymentBusy = Boolean(detailPendingPayment && busyPaymentId === detailPendingPayment.id);
 
   const sessionTitle =
     detail && !detailLoading
       ? String(detail.readableId ?? detail.sessionReadableId ?? detail.bookingCode ?? "Session").slice(0, 64)
       : "Session";
-
-  if (detailId) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            iconLeft={ArrowLeft}
-            onClick={() => {
-              setDetailId(null);
-              setDetail(null);
-              setMentors([]);
-              setDetailError(null);
-              setMentorDetail(null);
-            }}
-          >
-            Back to session requests
-          </Button>
-          {detailLoading ? (
-            <span className="inline-flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </span>
-          ) : null}
-        </div>
-
-        {detailError ? (
-          <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200">
-            <ShieldAlert className="h-4 w-4 shrink-0" />
-            {detailError}
-          </div>
-        ) : null}
-
-        {detail && !detailLoading ? (
-          <>
-            <header className="shrink-0 rounded-2xl border border-slate-200 bg-linear-to-br from-white to-slate-50 px-5 py-4 dark:border-slate-700 dark:from-slate-900 dark:to-slate-950">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Session</p>
-              <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
-                <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-2xl">{sessionTitle}</h2>
-                <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", badgeTone(String(detail.status ?? "")))}>
-                  {formatStatus(String(detail.status ?? "unknown"))}
-                </span>
-              </div>
-            </header>
-
-            <div className="flex shrink-0 flex-wrap gap-2 border-b border-slate-200 pb-1 dark:border-slate-700">
-              <button type="button" className={tabTriggerClass(sessionTab === "overview")} onClick={() => setSessionTab("overview")}>
-                Overview
-              </button>
-              <button type="button" className={tabTriggerClass(sessionTab === "payment")} onClick={() => setSessionTab("payment")}>
-                Payment
-              </button>
-              <button type="button" className={tabTriggerClass(sessionTab === "mentors")} onClick={() => setSessionTab("mentors")}>
-                Eligible mentors
-                <span className="ml-1.5 tabular-nums opacity-80">({mentors.length})</span>
-              </button>
-            </div>
-
-            <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900">
-                {sessionTab === "overview" ? <SessionDetailOverview detail={detail} /> : null}
-                {sessionTab === "payment" ? (
-                  paymentBlock ? (
-                    <KeyValueGrid data={sanitizeForDisplay(paymentBlock)} title="Payment details" />
-                  ) : (
-                    <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-                      No structured payment block on this session. Related amounts may still appear under Overview.
-                    </p>
-                  )
-                ) : null}
-                {sessionTab === "mentors" ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Mentors matched to this session&apos;s expertise. Use the view action for full details.
-                    </p>
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-                      <table className="min-w-full text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
-                            <th className="px-3 py-2.5">Name</th>
-                            <th className="min-w-[140px] px-3 py-2.5">Department</th>
-                            <th className="min-w-[180px] px-3 py-2.5">Email</th>
-                            <th className="min-w-[130px] px-3 py-2.5">Phone</th>
-                            <th className="px-3 py-2.5 text-center">View</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {mentors.map((m, idx) => (
-                            <tr key={idx} className="bg-white dark:bg-slate-900">
-                              <td className="px-3 py-2.5 font-medium text-slate-900 dark:text-slate-100">{mentorRowLabel(m, idx)}</td>
-                              <td className="max-w-[200px] truncate px-3 py-2.5 text-slate-700 dark:text-slate-200">
-                                {mentorDepartmentLabel(m) || "—"}
-                              </td>
-                              <td className="max-w-[220px] truncate px-3 py-2.5 text-slate-600 dark:text-slate-300">
-                                {mentorRowEmail(m) || "—"}
-                              </td>
-                              <td className="max-w-[160px] truncate px-3 py-2.5 text-slate-600 dark:text-slate-300">
-                                {mentorRowPhone(m) || "—"}
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <button
-                                  type="button"
-                                  title="View mentor details"
-                                  aria-label={`View details for ${mentorRowLabel(m, idx)}`}
-                                  className="inline-flex rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-600 dark:hover:bg-slate-800"
-                                  onClick={() => setMentorDetail(m)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                          {!mentors.length ? (
-                            <tr>
-                              <td colSpan={5} className="px-3 py-10 text-center text-slate-500">
-                                No eligible mentors returned for this session.
-                              </td>
-                            </tr>
-                          ) : null}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : null}
-            </div>
-
-            <Modal open={Boolean(mentorDetail)} onClose={() => setMentorDetail(null)} className="max-w-2xl rounded-2xl">
-              {mentorDetail ? (
-                <MentorDetailModalContent mentor={mentorDetail} onClose={() => setMentorDetail(null)} />
-              ) : null}
-            </Modal>
-          </>
-        ) : null}
-        <ToastCenter toasts={toasts} />
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-0 flex-col gap-4">
@@ -1370,7 +1394,10 @@ export function AdminSessionRequestsPanel() {
                     setActionMessage(null);
                     setEditRow(row);
                   }}
-                  onApprove={requestApproveConfirmation}
+                  onApprovePayment={handleTableApprovePayment}
+                  onRejectPayment={handleTableRejectPayment}
+                  busyPaymentId={busyPaymentId}
+                  pendingBySessionId={pendingBySessionId}
                 />
               </div>
             ) : null}
@@ -1401,7 +1428,10 @@ export function AdminSessionRequestsPanel() {
                   setActionMessage(null);
                   setEditRow(row);
                 }}
-                onApprove={requestApproveConfirmation}
+                onApprovePayment={handleTableApprovePayment}
+                onRejectPayment={handleTableRejectPayment}
+                busyPaymentId={busyPaymentId}
+                pendingBySessionId={pendingBySessionId}
               />
             </div>
             <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">
@@ -1417,6 +1447,138 @@ export function AdminSessionRequestsPanel() {
         ) : null}
         </article>
       ) : null}
+
+      <Modal open={Boolean(detailId)} onClose={closeSessionView} className="max-w-4xl rounded-2xl">
+        <div className="max-h-[min(85vh,760px)] overflow-y-auto p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Session request</p>
+              <h3 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-50">{sessionTitle}</h3>
+            </div>
+            {detail && !detailLoading ? (
+              <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", badgeTone(String(detail.status ?? "")))}>
+                {formatStatus(String(detail.status ?? "unknown"))}
+              </span>
+            ) : null}
+          </div>
+
+          {detailLoading ? (
+            <p className="mt-6 inline-flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading session…
+            </p>
+          ) : null}
+
+          {detailError ? (
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200">
+              <ShieldAlert className="h-4 w-4 shrink-0" />
+              {detailError}
+            </div>
+          ) : null}
+
+          {detail && !detailLoading ? (
+            <div className="mt-5 space-y-4">
+              {detailPendingPayment ? (
+                <PaymentReviewActions
+                  payment={detailPendingPayment}
+                  busy={detailPaymentBusy}
+                  rejectReason={paymentRejectReason}
+                  onRejectReasonChange={setPaymentRejectReason}
+                  onApprove={() => void runApprovePayment(detailPendingPayment.id, detailId ?? undefined)}
+                  onReject={() =>
+                    void runRejectPayment(detailPendingPayment.id, paymentRejectReason, detailId ?? undefined)
+                  }
+                />
+              ) : null}
+
+              <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-1 dark:border-slate-700">
+                <button type="button" className={tabTriggerClass(sessionTab === "overview")} onClick={() => setSessionTab("overview")}>
+                  Overview
+                </button>
+                <button type="button" className={tabTriggerClass(sessionTab === "payment")} onClick={() => setSessionTab("payment")}>
+                  Payment
+                </button>
+                <button type="button" className={tabTriggerClass(sessionTab === "mentors")} onClick={() => setSessionTab("mentors")}>
+                  Eligible mentors
+                  <span className="ml-1.5 tabular-nums opacity-80">({mentors.length})</span>
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900">
+                {sessionTab === "overview" ? <SessionDetailOverview detail={detail} /> : null}
+                {sessionTab === "payment" ? (
+                  <div className="space-y-4">
+                    {paymentBlock ? (
+                      <KeyValueGrid data={sanitizeForDisplay(paymentBlock)} title="Payment details" />
+                    ) : (
+                      <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+                        No structured payment block on this session. Related amounts may still appear under Overview.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+                {sessionTab === "mentors" ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Mentors matched to this session&apos;s expertise.
+                    </p>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                      <table className="min-w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+                            <th className="px-3 py-2.5">Name</th>
+                            <th className="min-w-[140px] px-3 py-2.5">Department</th>
+                            <th className="min-w-[180px] px-3 py-2.5">Email</th>
+                            <th className="min-w-[130px] px-3 py-2.5">Phone</th>
+                            <th className="px-3 py-2.5 text-center">View</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {mentors.map((m, idx) => (
+                            <tr key={idx} className="bg-white dark:bg-slate-900">
+                              <td className="px-3 py-2.5 font-medium text-slate-900 dark:text-slate-100">{mentorRowLabel(m, idx)}</td>
+                              <td className="max-w-[200px] truncate px-3 py-2.5 text-slate-700 dark:text-slate-200">
+                                {mentorDepartmentLabel(m) || "—"}
+                              </td>
+                              <td className="max-w-[220px] truncate px-3 py-2.5 text-slate-600 dark:text-slate-300">
+                                {mentorRowEmail(m) || "—"}
+                              </td>
+                              <td className="max-w-[160px] truncate px-3 py-2.5 text-slate-600 dark:text-slate-300">
+                                {mentorRowPhone(m) || "—"}
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <button
+                                  type="button"
+                                  title="View mentor details"
+                                  aria-label={`View details for ${mentorRowLabel(m, idx)}`}
+                                  className="inline-flex rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-600 dark:hover:bg-slate-800"
+                                  onClick={() => setMentorDetail(m)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {!mentors.length ? (
+                            <tr>
+                              <td colSpan={5} className="px-3 py-10 text-center text-slate-500">
+                                No eligible mentors returned for this session.
+                              </td>
+                            </tr>
+                          ) : null}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(mentorDetail)} onClose={() => setMentorDetail(null)} className="max-w-2xl rounded-2xl">
+        {mentorDetail ? <MentorDetailModalContent mentor={mentorDetail} onClose={() => setMentorDetail(null)} /> : null}
+      </Modal>
 
       <Modal open={Boolean(editRow)} onClose={() => setEditRow(null)} className="max-w-lg rounded-2xl">
         <div className="w-full p-6">

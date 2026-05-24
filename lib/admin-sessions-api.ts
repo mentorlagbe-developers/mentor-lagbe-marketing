@@ -325,6 +325,3 @@ export async function patchAdminSession(sessionId: string, body: Record<string, 
   });
 }
 
-export async function approveAdminSession(sessionId: string) {
-  return patchAdminSession(sessionId, { status: "approved" });
-}

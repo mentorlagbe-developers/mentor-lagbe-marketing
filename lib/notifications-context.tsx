@@ -12,10 +12,7 @@ import {
 import { io, type Socket } from "socket.io-client";
 import { apiFetch } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-store";
-
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
+import type { UserRole } from "@/lib/mock-auth";
 
 export type NotificationStatus = "pending" | "sent" | "failed" | "read";
 
@@ -43,45 +40,62 @@ type NotificationsContextValue = {
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   refresh: () => Promise<void>;
-  /** Increments every time a `session:accepted` socket event arrives.
-   *  Student components can watch this in a useEffect to auto-refresh data. */
   sessionAcceptedAt: number;
+  /** Bumps on session/payment socket events — refresh booking UIs */
+  sessionRefreshAt: number;
 };
 
-// ─────────────────────────────────────────────────────────────
-// Socket.io helpers
-// ─────────────────────────────────────────────────────────────
-
-const SOCKET_EVENTS = [
-  "session:request",
+const STUDENT_SOCKET_EVENTS = [
   "session:accepted",
+  "session:payment_approved",
+  "session:payment_rejected",
+  "session:payment_expired",
+  "session:meet_link_updated",
   "session:expired",
-  "heartbeat:ack",
 ] as const;
 
-type SocketEvent = (typeof SOCKET_EVENTS)[number];
+const MENTOR_SOCKET_EVENTS = ["session:request", "heartbeat:ack"] as const;
+
+const SHARED_SOCKET_EVENTS = [...MENTOR_SOCKET_EVENTS, ...STUDENT_SOCKET_EVENTS] as const;
+
+type SocketEvent = (typeof SHARED_SOCKET_EVENTS)[number];
 
 function deriveWsBase(): string {
   const apiUrl = process.env.NEXT_PUBLIC_WS_URL ?? process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) return "http://localhost:3000";
-  // Strip /api/v* suffix to get the server root
   return apiUrl.replace(/\/api\/v\d+\/?$/, "").replace(/\/$/, "") || "http://localhost:3000";
 }
 
 const WS_BASE = deriveWsBase();
 
-const EVENT_META: Record<SocketEvent, { title: string; body: string }> = {
+const EVENT_META: Record<string, { title: string; body: string }> = {
   "session:request": {
     title: "New Session Request",
     body: "A student has requested a 1-to-1 session. Tap to review and accept.",
   },
   "session:accepted": {
     title: "Session Accepted",
-    body: "A mentor accepted your session request. Get ready for your session!",
+    body: "A mentor accepted your session. Complete payment to confirm your spot.",
+  },
+  "session:payment_approved": {
+    title: "Payment Approved",
+    body: "Your payment was approved. Join unlocks at session time.",
+  },
+  "session:payment_rejected": {
+    title: "Payment Rejected",
+    body: "Your payment could not be verified. Please resubmit payment details.",
+  },
+  "session:payment_expired": {
+    title: "Payment Window Expired",
+    body: "The payment deadline passed. This session may have been cancelled.",
+  },
+  "session:meet_link_updated": {
+    title: "Meet Link Updated",
+    body: "Your mentor updated the meeting link. Use Join when your session starts.",
   },
   "session:expired": {
     title: "Session Expired",
-    body: "No mentor accepted your request within 30 minutes. Please try again.",
+    body: "No mentor accepted your request in time. Please book again.",
   },
   "heartbeat:ack": {
     title: "Status Confirmed",
@@ -90,17 +104,16 @@ const EVENT_META: Record<SocketEvent, { title: string; body: string }> = {
 };
 
 function socketPayloadToNotification(
-  event: SocketEvent,
+  event: string,
   data: Record<string, unknown>
 ): AppNotification {
   const now = new Date().toISOString();
-  const meta = EVENT_META[event];
+  const meta = EVENT_META[event] ?? { title: "Notification", body: "You have a new update." };
   return {
     id: `rt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     userId: "",
     channel: "in_app",
-    title:
-      typeof data.title === "string" ? data.title : meta.title,
+    title: typeof data.title === "string" ? data.title : meta.title,
     body:
       typeof data.body === "string"
         ? data.body
@@ -128,45 +141,62 @@ function socketPayloadToNotification(
   };
 }
 
-// ─────────────────────────────────────────────────────────────
-// Context
-// ─────────────────────────────────────────────────────────────
+function parseNotificationsResponse(raw: unknown): { list: AppNotification[]; unreadCount: number } {
+  if (Array.isArray(raw)) {
+    return { list: raw as AppNotification[], unreadCount: raw.filter((n) => !n.isRead).length };
+  }
+  if (raw && typeof raw === "object") {
+    const wrapped = raw as Record<string, unknown>;
+    const inner = wrapped.notifications ?? wrapped.items ?? wrapped.data;
+    const unread =
+      typeof wrapped.unreadCount === "number"
+        ? wrapped.unreadCount
+        : Array.isArray(inner)
+          ? (inner as AppNotification[]).filter((n) => !n.isRead).length
+          : 0;
+    if (Array.isArray(inner)) return { list: inner as AppNotification[], unreadCount: unread };
+  }
+  return { list: [], unreadCount: 0 };
+}
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
-export function NotificationsProvider({ children }: { children: React.ReactNode }) {
+export function NotificationsProvider({
+  children,
+  role = "student",
+}: {
+  children: React.ReactNode;
+  role?: UserRole;
+}) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [apiUnreadCount, setApiUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [sessionAcceptedAt, setSessionAcceptedAt] = useState(0);
+  const [sessionRefreshAt, setSessionRefreshAt] = useState(0);
   const socketRef = useRef<Socket | null>(null);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = Math.max(apiUnreadCount, notifications.filter((n) => !n.isRead).length);
 
-  // ── REST: fetch all notifications ──────────────────────────
+  const bumpSessionRefresh = useCallback(() => {
+    setSessionRefreshAt(Date.now());
+  }, []);
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const raw = await apiFetch<unknown>("/notifications/me", { auth: true });
-      let list: AppNotification[] = [];
-      if (Array.isArray(raw)) {
-        list = raw as AppNotification[];
-      } else if (raw && typeof raw === "object") {
-        const wrapped = raw as Record<string, unknown>;
-        const inner = wrapped.data ?? wrapped.notifications ?? wrapped.items;
-        if (Array.isArray(inner)) list = inner as AppNotification[];
-      }
+      const raw = await apiFetch<unknown>("/notifications/me?page=1&limit=20", { auth: true });
+      const { list, unreadCount: count } = parseNotificationsResponse(raw);
       setNotifications(list);
+      setApiUnreadCount(count);
     } catch {
-      // Silently fail — don't break the dashboard if notifications are unavailable
+      // keep dashboard usable if notifications API is down
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // ── REST: mark single notification as read ─────────────────
   const markRead = useCallback(async (id: string) => {
-    // Optimistic
     setNotifications((prev) =>
       prev.map((n) =>
         n.id === id
@@ -174,22 +204,17 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
           : n
       )
     );
+    setApiUnreadCount((c) => Math.max(0, c - 1));
     try {
       await apiFetch(`/notifications/${encodeURIComponent(id)}/read`, {
         method: "POST",
         auth: true,
       });
     } catch {
-      // Revert on failure
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, isRead: false, readAt: null, status: "sent" as const } : n
-        )
-      );
+      void refresh();
     }
-  }, []);
+  }, [refresh]);
 
-  // ── REST: mark all notifications as read ───────────────────
   const markAllRead = useCallback(async () => {
     setNotifications((prev) =>
       prev.map((n) => ({
@@ -199,18 +224,22 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         status: "read" as const,
       }))
     );
+    setApiUnreadCount(0);
     try {
       await apiFetch("/notifications/read-all", { method: "POST", auth: true });
     } catch {
-      // Re-fetch to restore server state
       void refresh();
     }
   }, [refresh]);
 
-  // ── Socket.io: real-time connection ───────────────────────
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
+
+    const eventsForRole: string[] =
+      role === "teacher"
+        ? [...MENTOR_SOCKET_EVENTS, ...STUDENT_SOCKET_EVENTS]
+        : [...STUDENT_SOCKET_EVENTS];
 
     const socket = io(`${WS_BASE}/notifications`, {
       auth: { token },
@@ -228,14 +257,17 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       setIsConnected(false);
     });
 
-    for (const event of SOCKET_EVENTS) {
+    for (const event of eventsForRole) {
       socket.on(event, (data: Record<string, unknown>) => {
         const newNotif = socketPayloadToNotification(event, data);
         setNotifications((prev) => [newNotif, ...prev]);
+        setApiUnreadCount((c) => c + 1);
 
-        // Let student components know a mentor just accepted their session
         if (event === "session:accepted") {
           setSessionAcceptedAt(Date.now());
+        }
+        if (event.startsWith("session:")) {
+          bumpSessionRefresh();
         }
       });
     }
@@ -244,19 +276,43 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []); // mount-only — token is read from memory on connect
+  }, [role, bumpSessionRefresh]);
 
-  // ── Initial fetch ─────────────────────────────────────────
+  useEffect(() => {
+    if (role !== "teacher" || !isConnected) return;
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    const emitHeartbeat = () => {
+      socket.emit("heartbeat");
+    };
+    emitHeartbeat();
+    const id = window.setInterval(emitHeartbeat, 60_000);
+    return () => window.clearInterval(id);
+  }, [role, isConnected]);
+
   useEffect(() => {
     const id = requestAnimationFrame(() => {
-      startTransition(() => { void refresh(); });
+      startTransition(() => {
+        void refresh();
+      });
     });
     return () => cancelAnimationFrame(id);
   }, [refresh]);
 
   return (
     <NotificationsContext.Provider
-      value={{ notifications, unreadCount, isConnected, isLoading, markRead, markAllRead, refresh, sessionAcceptedAt }}
+      value={{
+        notifications,
+        unreadCount,
+        isConnected,
+        isLoading,
+        markRead,
+        markAllRead,
+        refresh,
+        sessionAcceptedAt,
+        sessionRefreshAt,
+      }}
     >
       {children}
     </NotificationsContext.Provider>

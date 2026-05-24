@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+/** Prefer 127.0.0.1 — avoids Node fetch "fetch failed" on some macOS IPv6 localhost setups. */
 const BACKEND_API_BASE =
-  process.env.BACKEND_API_URL ?? "http://localhost:3000/api/v1";
+  process.env.BACKEND_API_URL ?? "http://127.0.0.1:3000/api/v1";
 
 function buildBackendUrl(pathSegments: string[], search: string) {
   const base = BACKEND_API_BASE.endsWith("/")
@@ -15,6 +16,19 @@ function errorEnvelope(status: number, message: string, code = "UPSTREAM_ERROR")
   return NextResponse.json(
     { success: false, error: { code, message, statusCode: status } },
     { status }
+  );
+}
+
+function isBackendUnreachable(cause: string): boolean {
+  return (
+    cause.includes("ECONNREFUSED") ||
+    cause.includes("ENOTFOUND") ||
+    cause.includes("fetch failed") ||
+    cause.includes("ECONNRESET") ||
+    cause.includes("EPIPE") ||
+    cause.includes("other side closed") ||
+    cause.includes("UND_ERR_SOCKET") ||
+    cause.includes("socket hang up")
   );
 }
 
@@ -33,7 +47,6 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
     return errorEnvelope(400, "Failed to read request body.");
   }
 
-  // Clean up hop-by-hop / encoding headers that confuse some backends
   headers.delete("transfer-encoding");
   headers.delete("connection");
   headers.delete("keep-alive");
@@ -42,7 +55,6 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
   headers.delete("upgrade");
   headers.delete("proxy-authorization");
   headers.delete("proxy-authenticate");
-  // Restore accurate content-length now that we have the full buffer
   if (body !== undefined) {
     headers.set("content-length", String(body.byteLength));
   }
@@ -54,18 +66,17 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
       headers,
       body,
       redirect: "manual",
+      cache: "no-store",
     });
   } catch (err) {
-    // Backend is down, crashed, or closed the socket before responding
     const cause = err instanceof Error ? err.message : "Unknown network error";
-    const isDown =
-      cause.includes("ECONNREFUSED") ||
-      cause.includes("ENOTFOUND") ||
-      cause.includes("other side closed") ||
-      cause.includes("UND_ERR_SOCKET");
 
-    if (isDown) {
-      return errorEnvelope(503, "The backend server is unavailable. Please try again shortly.", "SERVICE_UNAVAILABLE");
+    if (isBackendUnreachable(cause)) {
+      return errorEnvelope(
+        503,
+        "Cannot reach the API server. Ensure the backend is running on port 3000 (npm run start:dev:api-only) and try again.",
+        "SERVICE_UNAVAILABLE"
+      );
     }
     return errorEnvelope(502, `Upstream error: ${cause}`, "BAD_GATEWAY");
   }
@@ -74,7 +85,10 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
   responseHeaders.delete("content-encoding");
   responseHeaders.delete("transfer-encoding");
 
-  return new NextResponse(upstream.body, {
+  // Buffer body so half-closed upstream streams do not surface as "fetch failed" to the browser.
+  const responseBody = await upstream.arrayBuffer();
+
+  return new NextResponse(responseBody, {
     status: upstream.status,
     headers: responseHeaders,
   });

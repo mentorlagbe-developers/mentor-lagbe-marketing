@@ -35,7 +35,8 @@ export type DashboardSectionKey =
   | "platform-settings"
   | "security-center"
   | "pricing"
-  | "admin-session-requests";
+  | "admin-session-requests"
+  | "admin-payments";
 
 export type DashboardMenuItem = {
   id: DashboardSectionKey;
@@ -147,6 +148,12 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
     href: "/dashboard/admin-session-requests",
     icon: Inbox,
   },
+  "admin-payments": {
+    id: "admin-payments",
+    label: "Payments",
+    href: "/dashboard/admin-payments",
+    icon: Wallet,
+  },
 };
 
 const roleMenuKeys: Record<UserRole, DashboardSectionKey[]> = {
@@ -158,6 +165,7 @@ const roleMenuKeys: Record<UserRole, DashboardSectionKey[]> = {
     "user-management",
     "mentor-management",
     "admin-session-requests",
+    "admin-payments",
     "reports",
     "help-center",
     "platform-settings",

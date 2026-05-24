@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { formatBdPhoneForApi } from "@/lib/bd-phone";
 
 export type UserRoleApi = "student" | "mentor" | "admin" | "super_admin";
 
@@ -85,10 +86,16 @@ export async function updateMyBasicProfile(payload: {
   gender?: "male" | "female" | "other" | "prefer_not_to_say";
   dateOfBirth?: string;
 }) {
+  const body = { ...payload };
+  if (payload.phone !== undefined) {
+    const phone = formatBdPhoneForApi(payload.phone);
+    if (phone) body.phone = phone;
+    else delete body.phone;
+  }
   return apiFetch<MeProfile>("/users/me", {
     method: "PATCH",
     auth: true,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 }
 
@@ -101,11 +108,23 @@ export async function updateMyStudentProfile(payload: {
   address?: string;
   biography?: string;
   waNumber?: string;
+  phone?: string;
 }) {
+  const body = { ...payload };
+  if (payload.phone !== undefined) {
+    const phone = formatBdPhoneForApi(payload.phone);
+    if (phone) body.phone = phone;
+    else delete body.phone;
+  }
+  if (payload.waNumber !== undefined) {
+    const wa = formatBdPhoneForApi(payload.waNumber);
+    if (wa) body.waNumber = wa;
+    else delete body.waNumber;
+  }
   return apiFetch<Record<string, unknown>>("/users/me/student-profile", {
     method: "PATCH",
     auth: true,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 }
 
@@ -135,10 +154,13 @@ export async function updateMyMentorProfile(payload: {
   if (payload.biography !== undefined) body.biography = payload.biography;
   if (payload.qualification !== undefined) body.qualification = payload.qualification;
   if (payload.experienceYears !== undefined) {
-    const y = Number(payload.experienceYears);
+    const y = Math.trunc(Number(payload.experienceYears));
     if (!Number.isNaN(y)) body.experienceYears = y;
   }
-  if (payload.waNumber !== undefined) body.waNumber = payload.waNumber;
+  if (payload.waNumber !== undefined) {
+    const wa = formatBdPhoneForApi(payload.waNumber);
+    if (wa) body.waNumber = wa;
+  }
   if (payload.expertiseCourseIds !== undefined) body.expertiseCourseIds = payload.expertiseCourseIds;
   if (payload.availability !== undefined) {
     body.availability = payload.availability.map((slot) => ({
@@ -171,27 +193,13 @@ export async function createMentorByAdmin(payload: {
   phone: string;
   temporaryPassword: string;
 }) {
-  try {
-    return await apiFetch<Record<string, unknown>>("/admin/users", {
-      method: "POST",
-      auth: true,
-      body: JSON.stringify({
-        role: "mentor",
-        email: payload.email,
-        phone: payload.phone,
-        temporaryPassword: payload.temporaryPassword,
-      }),
-    });
-  } catch {
-    return apiFetch<Record<string, unknown>>("/admin/users", {
-      method: "POST",
-      auth: true,
-      body: JSON.stringify({
-        role: "mentor",
-        email: payload.email,
-        phone: payload.phone,
-        password: payload.temporaryPassword,
-      }),
-    });
-  }
+  return apiFetch<Record<string, unknown>>("/admin/mentors", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify({
+      email: payload.email.trim().toLowerCase(),
+      phone: payload.phone.trim(),
+      password: payload.temporaryPassword,
+    }),
+  });
 }

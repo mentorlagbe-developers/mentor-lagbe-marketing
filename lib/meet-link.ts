@@ -20,3 +20,15 @@ export function isValidGoogleMeetUrl(raw: string): boolean {
   if (u.pathname.startsWith("/lookup/") && u.pathname.length > "/lookup/".length + 2) return true;
   return false;
 }
+
+/** Any http(s) URL — for built-in platform video rooms (not only Google Meet). */
+export function isValidMeetingJoinUrl(raw: string): boolean {
+  const t = raw.trim();
+  if (!t) return false;
+  try {
+    const u = new URL(t.includes("://") ? t : `https://${t}`);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}

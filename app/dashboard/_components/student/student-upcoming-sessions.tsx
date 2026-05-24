@@ -4,7 +4,7 @@ import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useNotifications } from "@/lib/notifications-context";
-import { JoinMeetingButton } from "@/app/components/ui/join-meeting-button";
+import Link from "next/link";
 
 type RawBooking = Record<string, unknown>;
 
@@ -172,13 +172,12 @@ export function StudentUpcomingSessions() {
                   </p>
                 </div>
 
-                {item.meetLink?.trim() ? (
-                  <JoinMeetingButton href={item.meetLink} variant="compact" />
-                ) : (
-                  <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                    Upcoming
-                  </span>
-                )}
+                <Link
+                  href={`/dashboard/bookings?focus=${encodeURIComponent(item.id)}`}
+                  className="shrink-0 rounded-lg border border-sky-200 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-300"
+                >
+                  Manage
+                </Link>
               </div>
             </article>
           ))}

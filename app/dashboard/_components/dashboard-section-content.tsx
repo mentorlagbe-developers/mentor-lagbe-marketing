@@ -9,6 +9,9 @@ import { BookingsSection } from "@/app/dashboard/_components/bookings/bookings-s
 import { StudentDashboardOverview } from "@/app/dashboard/_components/student/student-dashboard-overview";
 import { MentorDashboardOverview } from "@/app/dashboard/_components/mentor/mentor-dashboard-overview";
 import { MentorSessionRequests } from "@/app/dashboard/_components/mentor/mentor-session-requests";
+import { PaymentsSection } from "@/app/dashboard/_components/payments/payments-section";
+import { HelpCenterSection } from "@/app/dashboard/_components/help-center/help-center-section";
+import { AdminPaymentsPanel } from "@/app/dashboard/_components/admin/admin-payments-panel";
 import type { UserRole } from "@/lib/mock-auth";
 
 type DashboardSectionContentProps = {
@@ -49,8 +52,20 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
     return <BookingsSection />;
   }
 
+  if (section === "payments" && role === "student") {
+    return <PaymentsSection />;
+  }
+
+  if (section === "help-center") {
+    return <HelpCenterSection role={role} />;
+  }
+
   if (role === "superadmin" && section === "admin-session-requests") {
     return <AdminSessionRequestsPanel />;
+  }
+
+  if (role === "superadmin" && section === "admin-payments") {
+    return <AdminPaymentsPanel />;
   }
 
   const sectionMeta = getDashboardMenuByRole(role).find((item) => item.id === section);

@@ -4,7 +4,6 @@ import { startTransition, useCallback, useEffect, useMemo, useState } from "reac
 import {
   CheckCircle2,
   Clock,
-  ExternalLink,
   Eye,
   GraduationCap,
   MoreHorizontal,
@@ -12,7 +11,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { isValidGoogleMeetUrl } from "@/lib/meet-link";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
@@ -173,7 +171,7 @@ function SessionModal({
   onUpdate: (id: string, status: string) => void;
 }) {
   const [step, setStep] = useState<ModalStep>("view");
-  const [meetLink, setMeetLink] = useState("");
+  // const [meetLink, setMeetLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,14 +189,6 @@ function SessionModal({
         : "—";
 
   async function submitAccept() {
-    if (!meetLink.trim()) {
-      setError("Please enter a valid Google Meet link.");
-      return;
-    }
-    if (!isValidGoogleMeetUrl(meetLink)) {
-      setError("Enter a complete Google Meet link (e.g. meet.google.com/xxx-yyy-zzz).");
-      return;
-    }
     setIsSubmitting(true);
     setError(null);
     try {
@@ -206,7 +196,8 @@ function SessionModal({
       await apiFetch(`/live-sessions/sessions/${encodeURIComponent(sid)}/accept`, {
         method: "POST",
         auth: true,
-        body: JSON.stringify({ meetLink: meetLink.trim() }),
+        body: JSON.stringify({}),
+        // Legacy Google Meet: body: JSON.stringify({ meetLink: meetLink.trim() }),
       });
       onUpdate(session.id, "accepted");
       setStep("done");
@@ -247,7 +238,7 @@ function SessionModal({
             </div>
             <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">Session Accepted!</h4>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              The Google Meet link has been sent to the student. See you in the session!
+              The student has been notified. Use Join on your dashboard when the session starts.
             </p>
             <Button onClick={onClose} className="mt-2">Done</Button>
           </div>
@@ -319,51 +310,21 @@ function SessionModal({
                   >
                     Decline
                   </Button>
-                  <Button iconLeft={CheckCircle2} onClick={() => { setStep("accept"); setError(null); }}>
-                    Accept
+                  <Button iconLeft={CheckCircle2} onClick={() => void submitAccept()} disabled={isSubmitting}>
+                    {isSubmitting ? "Accepting…" : "Accept"}
                   </Button>
                 </>
               )}
             </div>
           </>
         ) : step === "accept" ? (
+          /* Manual meet-link step disabled — built-in video conferencing
           <>
-            <h4 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Submit Meet Link</h4>
-            <p className="mb-5 text-sm text-slate-500">Paste your Google Meet link to confirm this session for {sName}.</p>
-
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-800/40 dark:bg-sky-950/40">
-              <p className="font-semibold text-sky-800 dark:text-sky-300">{t}</p>
-              <p className="mt-0.5 text-xs text-sky-600 dark:text-sky-400">{friendlyDate(session.session_date)} · {time}</p>
-            </div>
-
-            <div className="mt-4 space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                Google Meet Link <span className="text-rose-500">*</span>
-              </label>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-400/20 dark:border-slate-600 dark:bg-slate-700">
-                <ExternalLink className="h-4 w-4 shrink-0 text-slate-400" />
-                <input
-                  type="url"
-                  placeholder="https://meet.google.com/abc-defg-hij"
-                  value={meetLink}
-                  onChange={(e) => setMeetLink(e.target.value)}
-                  className="w-full bg-transparent text-sm text-slate-900 outline-none dark:text-slate-100"
-                />
-              </div>
-              <p className="text-xs text-slate-400">The student will receive this link instantly after confirmation.</p>
-            </div>
-
-            {error && (
-              <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">{error}</p>
-            )}
-
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => { setStep("view"); setError(null); }} disabled={isSubmitting}>Back</Button>
-              <Button onClick={() => void submitAccept()} disabled={isSubmitting || !isValidGoogleMeetUrl(meetLink)}>
-                {isSubmitting ? "Confirming…" : "Confirm Session"}
-              </Button>
-            </div>
+            <h4>Submit Meet Link</h4>
+            ...
           </>
+          */
+          null
         ) : (
           <>
             <h4 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Decline Request?</h4>

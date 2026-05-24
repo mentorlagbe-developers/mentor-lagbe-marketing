@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useFormik } from "formik";
 import Image from "next/image";
 import { IdCard, PencilLine } from "lucide-react";
 import { ApiError } from "@/lib/api";
+import { formatBdPhoneForDisplay, isValidBdPhoneApi } from "@/lib/bd-phone";
 import type { UserRole } from "@/lib/mock-auth";
 import {
   getCoursesByDepartment,
@@ -31,7 +32,38 @@ const avatarPalette = [
 ] as const;
 
 function isValidBdPhone(value: string) {
-  return /^\+8801[3-9]\d{8}$/.test(value.trim());
+  return isValidBdPhoneApi(value);
+}
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  if (!(error instanceof ApiError)) return fallback;
+  const detailText = error.details
+    ?.map((d) => d.message ?? d.field)
+    .filter((v): v is string => Boolean(v))
+    .join(". ");
+  if (detailText) return detailText;
+  if (error.code === "INVALID_BD_PHONE_FORMAT") {
+    return "Phone must be a valid Bangladesh number (+8801XXXXXXXXX).";
+  }
+  return error.message || fallback;
+}
+
+function summarizeFormikErrors(errors: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const value of Object.values(errors)) {
+    if (typeof value === "string" && value.trim()) parts.push(value);
+    else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item.trim()) parts.push(item);
+      }
+    }
+  }
+  return parts.length ? parts.join(" ") : "Please fix the errors below and try again.";
+}
+
+/** Formik + type="number" may store a number; always coerce before .trim() or display. */
+function formText(value: unknown): string {
+  return value == null ? "" : String(value);
 }
 
 function mapDepartments(records: Array<Record<string, unknown>>): DepartmentOption[] {
@@ -202,7 +234,7 @@ export function ProfileSection({ role }: { role: UserRole }) {
     enableReinitialize: true,
     initialValues: {
       fullName: profile?.fullName ?? "",
-      phone: profile?.phone ?? "",
+      phone: formatBdPhoneForDisplay(profile?.phone),
       profilePictureUrl: profile?.profilePictureUrl ?? "",
       gender: profile?.gender ?? "",
       dateOfBirth: profile?.dateOfBirth?.slice(0, 10) ?? "",
@@ -213,7 +245,7 @@ export function ProfileSection({ role }: { role: UserRole }) {
       currentEducationStatus: resolvedCurrentEducationStatus ?? "",
       address: resolvedAddress ?? "",
       biography: studentProfile?.biography ?? "",
-      waNumber: studentProfile?.waNumber ?? "",
+      waNumber: formatBdPhoneForDisplay(studentProfile?.waNumber),
     },
     validate(values) {
       const errors: Partial<Record<keyof typeof values, string>> = {};
@@ -259,11 +291,14 @@ export function ProfileSection({ role }: { role: UserRole }) {
           biography: values.biography.trim() || undefined,
           waNumber: values.waNumber.trim() || undefined,
         });
-        await refreshProfile();
-        pushToast("success", "Profile updated successfully.");
         setIsStudentModalOpen(false);
+        setStatus(null);
+        pushToast("success", "Profile updated successfully.");
+        void refreshProfile();
       } catch (error) {
-        setStatus(error instanceof ApiError ? error.message : "Profile update failed.");
+        const message = apiErrorMessage(error, "Profile update failed.");
+        setStatus(message);
+        pushToast("danger", message);
       }
     },
   });
@@ -350,14 +385,14 @@ export function ProfileSection({ role }: { role: UserRole }) {
     enableReinitialize: true,
     initialValues: {
       fullName: profile?.fullName ?? "",
-      phone: profile?.phone ?? "",
+      phone: formatBdPhoneForDisplay(profile?.phone),
       profilePictureUrl: profile?.profilePictureUrl ?? "",
       gender: profile?.gender ?? "",
       dateOfBirth: profile?.dateOfBirth?.slice(0, 10) ?? "",
       biography: mentorProfile?.biography ?? "",
       qualification: mentorProfile?.qualification ?? "",
-      experienceYears: typeof mentorProfile?.experienceYears === "number" ? String(mentorProfile.experienceYears) : "",
-      waNumber: mentorProfile?.waNumber ?? "",
+      experienceYears: formText(mentorProfile?.experienceYears),
+      waNumber: formatBdPhoneForDisplay(mentorProfile?.waNumber),
       expertiseCourseIds: mentorExpertiseCourseIds,
       availability:
         mentorAvailability.length
@@ -374,7 +409,14 @@ export function ProfileSection({ role }: { role: UserRole }) {
       if (!values.fullName.trim()) errors.fullName = "Full name is required.";
       if (!values.biography.trim()) errors.biography = "Biography is required.";
       if (!values.qualification.trim()) errors.qualification = "Qualification is required.";
-      if (!values.experienceYears.trim()) errors.experienceYears = "Experience is required.";
+      const experienceYears = formText(values.experienceYears).trim();
+      if (!experienceYears) errors.experienceYears = "Experience is required.";
+      else if (Number.isNaN(Number(experienceYears)) || Number(experienceYears) < 0) {
+        errors.experienceYears = "Enter a valid number of years.";
+      }
+      if (values.waNumber.trim() && !isValidBdPhone(values.waNumber)) {
+        errors.waNumber = "WhatsApp number must be +8801XXXXXXXXX format.";
+      }
       if (!values.expertiseCourseIds.length) errors.expertiseCourseIds = "Select at least one course.";
       if (values.expertiseCourseIds.length) {
         const distinct = countDistinctExpertiseDepartments(values.expertiseCourseIds, mentorCourseMetaById);
@@ -404,7 +446,7 @@ export function ProfileSection({ role }: { role: UserRole }) {
         await updateMyMentorProfile({
           biography: values.biography.trim(),
           qualification: values.qualification.trim(),
-          experienceYears: Number(values.experienceYears),
+          experienceYears: Number(formText(values.experienceYears)),
           waNumber: values.waNumber.trim() || undefined,
           expertiseCourseIds: values.expertiseCourseIds,
           availability: values.availability.map((slot) => ({
@@ -414,14 +456,29 @@ export function ProfileSection({ role }: { role: UserRole }) {
             isActive: Boolean(slot.isActive),
           })),
         });
-        await refreshProfile();
-        pushToast("success", "Profile updated successfully.");
         setIsMentorModalOpen(false);
+        setStatus(null);
+        pushToast("success", "Profile updated successfully.");
+        void refreshProfile();
       } catch (error) {
-        setStatus(error instanceof ApiError ? error.message : "Profile update failed.");
+        const message = apiErrorMessage(error, "Profile update failed.");
+        setStatus(message);
+        pushToast("danger", message);
       }
     },
   });
+
+  const handleMentorModalSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const errors = await mentorForm.validateForm();
+    if (Object.keys(errors).length > 0) {
+      const message = summarizeFormikErrors(errors as Record<string, unknown>);
+      setStatus(message);
+      pushToast("warning", message);
+      return;
+    }
+    await mentorForm.submitForm();
+  };
 
   useEffect(() => {
     if (!isMentorModalOpen) return;
@@ -519,7 +576,7 @@ export function ProfileSection({ role }: { role: UserRole }) {
     enableReinitialize: true,
     initialValues: {
       fullName: profile?.fullName ?? "",
-      phone: profile?.phone ?? "",
+      phone: formatBdPhoneForDisplay(profile?.phone),
       gender: profile?.gender ?? "",
       dateOfBirth: profile?.dateOfBirth?.slice(0, 10) ?? "",
     },
@@ -536,7 +593,7 @@ export function ProfileSection({ role }: { role: UserRole }) {
         pushToast("success", "Profile updated successfully.");
         setIsEditing(false);
       } catch (error) {
-        setStatus(error instanceof ApiError ? error.message : "Profile update failed.");
+        setStatus(apiErrorMessage(error, "Profile update failed."));
       }
     },
   });
@@ -1016,8 +1073,13 @@ export function ProfileSection({ role }: { role: UserRole }) {
             <div className="origin-top scale-[0.97] px-4 py-1 sm:scale-100 sm:px-5 sm:py-2">
               <form
                 className="grid items-start gap-3.5 p-4 text-[15px] leading-snug sm:p-5 md:grid-cols-3 md:text-base md:leading-normal"
-                onSubmit={mentorForm.handleSubmit}
+                onSubmit={(event) => void handleMentorModalSubmit(event)}
               >
+                {mentorForm.submitCount > 0 && Object.keys(mentorForm.errors).length > 0 ? (
+                  <div className="md:col-span-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+                    {summarizeFormikErrors(mentorForm.errors as Record<string, unknown>)}
+                  </div>
+                ) : null}
                 <label className="space-y-1.5 text-sm md:col-span-1 md:text-[15px]">
                   <span className="font-semibold text-slate-700 dark:text-slate-300">Full Name</span>
                   <input
@@ -1076,8 +1138,8 @@ export function ProfileSection({ role }: { role: UserRole }) {
                     name="experienceYears"
                     type="number"
                     min={0}
-                    value={mentorForm.values.experienceYears}
-                    onChange={mentorForm.handleChange}
+                    value={formText(mentorForm.values.experienceYears)}
+                    onChange={(e) => mentorForm.setFieldValue("experienceYears", e.target.value)}
                     className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                   />
                 </label>
@@ -1159,6 +1221,9 @@ export function ProfileSection({ role }: { role: UserRole }) {
                       Add Slot
                     </Button>
                   </div>
+                  {typeof mentorForm.errors.availability === "string" && mentorForm.submitCount > 0 ? (
+                    <p className="text-sm text-rose-600 dark:text-rose-400">{mentorForm.errors.availability}</p>
+                  ) : null}
                   {mentorForm.values.availability.map((slot, index) => (
                     <div
                       key={`${index}-${slot.dayOfWeek}-${slot.startTime}`}
@@ -1236,7 +1301,9 @@ export function ProfileSection({ role }: { role: UserRole }) {
                     <Button type="button" variant="secondary" onClick={() => setIsMentorModalOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">Save changes</Button>
+                    <Button type="submit" disabled={mentorForm.isSubmitting}>
+                      {mentorForm.isSubmitting ? "Saving…" : "Save changes"}
+                    </Button>
                   </div>
                 </div>
               </form>
