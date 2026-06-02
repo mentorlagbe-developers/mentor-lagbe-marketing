@@ -170,6 +170,9 @@ export function clearAuthSession() {
   accessTokenMemory = null;
   safeLocalStorageRemove(CURRENT_USER_KEY);
   safeLocalStorageRemove(REFRESH_TOKEN_KEY);
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.removeItem("ml_mentor_status_confirmed_shown");
+  }
   dispatchAuthChange();
 }
 

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   UserCircle2,
   Users,
+  Verified,
   Video,
   Wallet,
 } from "lucide-react";
@@ -27,6 +28,7 @@ export type DashboardSectionKey =
   | "payments"
   | "my-students"
   | "session-requests"
+  | "mentor-live-sessions"
   | "earnings"
   | "user-management"
   | "mentor-management"
@@ -35,6 +37,8 @@ export type DashboardSectionKey =
   | "platform-settings"
   | "security-center"
   | "pricing"
+  | "certifications"
+  | "admin-certifications"
   | "admin-session-requests"
   | "admin-payments";
 
@@ -94,6 +98,12 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
     href: "/dashboard/session-requests",
     icon: MessageSquareText,
   },
+  "mentor-live-sessions": {
+    id: "mentor-live-sessions",
+    label: "Live Sessions",
+    href: "/dashboard/mentor-live-sessions",
+    icon: Video,
+  },
   earnings: {
     id: "earnings",
     label: "Earnings",
@@ -142,6 +152,18 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
     href: "/dashboard/pricing",
     icon: Video,
   },
+  certifications: {
+    id: "certifications",
+    label: "Certifications",
+    href: "/dashboard/certifications",
+    icon: Verified,
+  },
+  "admin-certifications": {
+    id: "admin-certifications",
+    label: "Certifications",
+    href: "/dashboard/admin-certifications",
+    icon: Verified,
+  },
   "admin-session-requests": {
     id: "admin-session-requests",
     label: "Session Request",
@@ -157,13 +179,14 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
 };
 
 const roleMenuKeys: Record<UserRole, DashboardSectionKey[]> = {
-  student: ["dashboard", "live-session", "bookings", "payments", "help-center", "pricing"],
-  teacher: ["dashboard", "my-students", "session-requests", "earnings", "help-center"],
+  student: ["dashboard", "live-session", "certifications", "bookings", "payments", "help-center", "pricing"],
+  teacher: ["dashboard", "my-students", "session-requests", "mentor-live-sessions", "earnings", "help-center"],
   admin: ["dashboard", "user-management", "mentor-management", "reports", "help-center"],
   superadmin: [
     "dashboard",
     "user-management",
     "mentor-management",
+    "admin-certifications",
     "admin-session-requests",
     "admin-payments",
     "reports",

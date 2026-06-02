@@ -13,6 +13,7 @@ import {
   type StudentBookingDetail,
 } from "@/lib/live-sessions-student-api";
 import { cn } from "@/lib/utils";
+import { meetingJoinDisabledTitle, useMeetingJoinAccess } from "@/lib/session-join-timing";
 
 type BookingDetailPanelProps = {
   bookingId: string;
@@ -94,6 +95,21 @@ export function BookingDetailPanel({
   }, [load]);
 
   const joinAccess = detail?.joinAccess;
+  const joinWindowRecord = useMemo(
+    () =>
+      detail
+        ? ({
+            status: detail.status,
+            sessionDate: detail.sessionDate,
+            startTime: detail.startTime,
+            endTime: detail.endTime,
+            durationMinutes: detail.durationMinutes,
+            id: detail.id,
+          } satisfies Record<string, unknown>)
+        : null,
+    [detail],
+  );
+  const joinWindow = useMeetingJoinAccess(joinWindowRecord);
   const countdown = useMemo(
     () => formatCountdown(detail?.paymentDeadlineAt),
     [detail?.paymentDeadlineAt]
@@ -127,10 +143,10 @@ export function BookingDetailPanel({
   }
 
   const resolveMeetingUrl = useCallback(async () => {
-    if (!detail?.joinAccess?.canJoin) return null;
+    if (!detail?.joinAccess?.canJoin || !joinWindow.canJoin) return null;
     const res = await joinBookingSession(detail.id);
     return res.meetLink?.trim() ?? null;
-  }, [detail]);
+  }, [detail, joinWindow.canJoin]);
 
   async function handleCancel() {
     if (!detail) return;
@@ -257,7 +273,13 @@ export function BookingDetailPanel({
           inAppSessionId={detail.id}
           meetRole="student"
           variant="full"
+          disabled={!joinWindow.canJoin}
+          disabledTitle={meetingJoinDisabledTitle(joinWindow)}
         />
+      ) : joinWindow.reason === "after_end" || joinWindow.reason === "terminal_status" ? (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {meetingJoinDisabledTitle(joinWindow)}
+        </p>
       ) : (
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Join unlocks at session time after payment is approved. You will review a privacy notice before entering the room.

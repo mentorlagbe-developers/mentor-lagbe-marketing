@@ -22,6 +22,8 @@ type JoinMeetingButtonProps = {
   variant?: "full" | "compact";
   className?: string;
   disabled?: boolean;
+  /** Shown as button title when `disabled` is true. */
+  disabledTitle?: string;
 };
 
 function openMeetingUrl(url: string) {
@@ -38,6 +40,7 @@ export function JoinMeetingButton({
   variant = "full",
   className,
   disabled = false,
+  disabledTitle,
 }: JoinMeetingButtonProps) {
   const router = useRouter();
   const [consentOpen, setConsentOpen] = useState(false);
@@ -93,7 +96,7 @@ export function JoinMeetingButton({
         disabled={!canAttemptJoin}
         title={
           disabled
-            ? "Join is not available yet"
+            ? (disabledTitle ?? "Join is not available yet")
             : canAttemptJoin
               ? "Review privacy notice and join session"
               : "No meeting room available"

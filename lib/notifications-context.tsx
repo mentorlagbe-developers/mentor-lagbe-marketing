@@ -43,6 +43,8 @@ type NotificationsContextValue = {
   sessionAcceptedAt: number;
   /** Bumps on session/payment socket events — refresh booking UIs */
   sessionRefreshAt: number;
+  /** Call after local session mutations (e.g. mentor accept) to refresh dashboards */
+  notifySessionsUpdated: () => void;
 };
 
 const STUDENT_SOCKET_EVENTS = [
@@ -54,9 +56,15 @@ const STUDENT_SOCKET_EVENTS = [
   "session:expired",
 ] as const;
 
-const MENTOR_SOCKET_EVENTS = ["session:request", "heartbeat:ack"] as const;
+/** Real-time events that become in-app notifications (heartbeat:ack handled separately for mentors). */
+const MENTOR_SOCKET_EVENTS = ["session:request"] as const;
 
 const SHARED_SOCKET_EVENTS = [...MENTOR_SOCKET_EVENTS, ...STUDENT_SOCKET_EVENTS] as const;
+
+const MENTOR_STATUS_CONFIRMED_TITLE = "Status Confirmed";
+const MENTOR_CONNECTION_FAILED_TITLE = "Connection Failed";
+
+const MENTOR_STATUS_SESSION_KEY = "ml_mentor_status_confirmed_shown";
 
 type SocketEvent = (typeof SHARED_SOCKET_EVENTS)[number];
 
@@ -98,10 +106,47 @@ const EVENT_META: Record<string, { title: string; body: string }> = {
     body: "No mentor accepted your request in time. Please book again.",
   },
   "heartbeat:ack": {
-    title: "Status Confirmed",
+    title: MENTOR_STATUS_CONFIRMED_TITLE,
     body: "Server confirmed your active mentor status.",
   },
+  "connection:failed": {
+    title: MENTOR_CONNECTION_FAILED_TITLE,
+    body: "Live updates are offline. Notifications may be delayed until you reconnect.",
+  },
 };
+
+function isMentorSystemNoise(n: AppNotification): boolean {
+  const t = (n.title ?? "").toLowerCase();
+  const b = (n.body ?? "").toLowerCase();
+  return (
+    t.includes("status confirmed") ||
+    t.includes("heartbeat") ||
+    b.includes("active mentor status") ||
+    t.includes("connection failed") ||
+    (t.includes("live updates") && (t.includes("off") || t.includes("offline")))
+  );
+}
+
+function filterNotificationsForRole(list: AppNotification[], role: UserRole): AppNotification[] {
+  if (role !== "teacher") return list;
+  return list.filter((n) => !isMentorSystemNoise(n));
+}
+
+function hasShownMentorStatusThisLogin(): boolean {
+  if (typeof sessionStorage === "undefined") return false;
+  return sessionStorage.getItem(MENTOR_STATUS_SESSION_KEY) === "1";
+}
+
+function markMentorStatusShownThisLogin(): void {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem(MENTOR_STATUS_SESSION_KEY, "1");
+}
+
+/** Clear on logout so the next login can show status confirmed once again. */
+export function clearMentorNotificationSessionFlags(): void {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.removeItem(MENTOR_STATUS_SESSION_KEY);
+}
 
 function socketPayloadToNotification(
   event: string,
@@ -141,6 +186,10 @@ function socketPayloadToNotification(
   };
 }
 
+function makeSystemNotification(event: string): AppNotification {
+  return socketPayloadToNotification(event, {});
+}
+
 function parseNotificationsResponse(raw: unknown): { list: AppNotification[]; unreadCount: number } {
   if (Array.isArray(raw)) {
     return { list: raw as AppNotification[], unreadCount: raw.filter((n) => !n.isRead).length };
@@ -175,8 +224,41 @@ export function NotificationsProvider({
   const [sessionAcceptedAt, setSessionAcceptedAt] = useState(0);
   const [sessionRefreshAt, setSessionRefreshAt] = useState(0);
   const socketRef = useRef<Socket | null>(null);
+  const wasConnectedRef = useRef(false);
+  const connectionFailureActiveRef = useRef(false);
 
   const unreadCount = Math.max(apiUnreadCount, notifications.filter((n) => !n.isRead).length);
+
+  const prependNotification = useCallback((notif: AppNotification, replaceTitle?: string) => {
+    setNotifications((prev) => {
+      const base = replaceTitle ? prev.filter((n) => n.title !== replaceTitle) : prev;
+      return [notif, ...base];
+    });
+    setApiUnreadCount((c) => c + 1);
+  }, []);
+
+  const showMentorStatusConfirmedOnce = useCallback(() => {
+    if (role !== "teacher" || hasShownMentorStatusThisLogin()) return;
+    markMentorStatusShownThisLogin();
+    prependNotification(makeSystemNotification("heartbeat:ack"), MENTOR_STATUS_CONFIRMED_TITLE);
+  }, [role, prependNotification]);
+
+  const showMentorConnectionFailed = useCallback(() => {
+    if (role !== "teacher" || connectionFailureActiveRef.current) return;
+    connectionFailureActiveRef.current = true;
+    prependNotification(
+      makeSystemNotification("connection:failed"),
+      MENTOR_CONNECTION_FAILED_TITLE,
+    );
+  }, [role, prependNotification]);
+
+  const clearMentorConnectionFailed = useCallback(() => {
+    if (role !== "teacher") return;
+    connectionFailureActiveRef.current = false;
+    setNotifications((prev) =>
+      prev.filter((n) => n.title !== MENTOR_CONNECTION_FAILED_TITLE),
+    );
+  }, [role]);
 
   const bumpSessionRefresh = useCallback(() => {
     setSessionRefreshAt(Date.now());
@@ -187,14 +269,15 @@ export function NotificationsProvider({
     try {
       const raw = await apiFetch<unknown>("/notifications/me?page=1&limit=20", { auth: true });
       const { list, unreadCount: count } = parseNotificationsResponse(raw);
-      setNotifications(list);
-      setApiUnreadCount(count);
+      const filtered = filterNotificationsForRole(list, role);
+      setNotifications(filtered);
+      setApiUnreadCount(filtered.filter((n) => !n.isRead).length);
     } catch {
       // keep dashboard usable if notifications API is down
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [role]);
 
   const markRead = useCallback(async (id: string) => {
     setNotifications((prev) =>
@@ -250,11 +333,36 @@ export function NotificationsProvider({
 
     socketRef.current = socket;
 
-    socket.on("connect", () => setIsConnected(true));
-    socket.on("disconnect", () => setIsConnected(false));
+    socket.on("connect", () => {
+      setIsConnected(true);
+      clearMentorConnectionFailed();
+      if (role === "teacher") {
+        showMentorStatusConfirmedOnce();
+      }
+      wasConnectedRef.current = true;
+    });
+
+    socket.on("disconnect", () => {
+      setIsConnected(false);
+      if (role === "teacher" && wasConnectedRef.current) {
+        showMentorConnectionFailed();
+      }
+    });
+
     socket.on("connect_error", (err: Error) => {
       console.warn("[notifications] socket error:", err.message);
       setIsConnected(false);
+      if (role === "teacher") {
+        showMentorConnectionFailed();
+      }
+    });
+
+    socket.on("heartbeat:ack", () => {
+      // Mentor heartbeat runs every 60s — do not spam the notification list.
+      if (role === "teacher") {
+        setIsConnected(true);
+        clearMentorConnectionFailed();
+      }
     });
 
     for (const event of eventsForRole) {
@@ -275,8 +383,16 @@ export function NotificationsProvider({
     return () => {
       socket.disconnect();
       socketRef.current = null;
+      wasConnectedRef.current = false;
+      connectionFailureActiveRef.current = false;
     };
-  }, [role, bumpSessionRefresh]);
+  }, [
+    role,
+    bumpSessionRefresh,
+    showMentorStatusConfirmedOnce,
+    showMentorConnectionFailed,
+    clearMentorConnectionFailed,
+  ]);
 
   useEffect(() => {
     if (role !== "teacher" || !isConnected) return;
@@ -312,6 +428,7 @@ export function NotificationsProvider({
         refresh,
         sessionAcceptedAt,
         sessionRefreshAt,
+        notifySessionsUpdated: bumpSessionRefresh,
       }}
     >
       {children}

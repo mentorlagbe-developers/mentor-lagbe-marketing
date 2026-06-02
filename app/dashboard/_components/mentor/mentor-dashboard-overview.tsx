@@ -3,12 +3,15 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { CalendarClock, Eye, RefreshCw, User } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { JoinMeetingButton } from "@/app/components/ui/join-meeting-button";
+import { MentorJoinMeetingButton } from "@/app/dashboard/_components/mentor/mentor-join-meeting-button";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
-import constants from "node:constants";
+import { isUpcomingLiveSession } from "@/app/dashboard/_components/mentor/mentor-session-utils";
+import { useNotifications } from "@/lib/notifications-context";
+import { calendarDateFromApiValue, calendarDateFromRecord } from "@/lib/session-datetime";
+import { sessionReadableIdFromRecord } from "@/lib/session-readable-id";
 
 // ─── API shape ────────────────────────────────────────────────
 type DashboardSession = {
@@ -199,22 +202,6 @@ function studentName(s: DashboardSession): string {
   return s.student?.name ?? s.student_name ?? "—";
 }
 
-function safeId(s: DashboardSession): string {
-  return s.readable_id ?? s.id?.slice(0, 8) ?? "—";
-}
-
-// Status is "not yet conducted" = accepted/scheduled/confirmed but not completed/canceled
-function isNotYetConducted(status = ""): boolean {
-  const s = status.toLowerCase();
-  return (
-    s.includes("accepted") ||
-    s.includes("mentor_accepted") ||
-    s.includes("scheduled") ||
-    s.includes("confirmed") ||
-    s.includes("pending")
-  ) && !s.includes("completed") && !s.includes("cancel") && !s.includes("expired");
-}
-
 function statusTone(status = ""): "success" | "warning" | "danger" | "info" {
   const s = status.toLowerCase();
   if (s.includes("completed")) return "success";
@@ -259,7 +246,10 @@ function SessionDetailModal({ session, onClose }: { session: DashboardSession; o
   return (
     <Modal open onClose={onClose} className="w-full max-w-xl">
       <div className="p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Session Details</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Session Details</h2>
+          <p className="mt-1 font-mono text-xs text-slate-400">ID: {session.readable_id ?? "—"}</p>
+        </div>
         {/* Student card */}
         <div className="flex items-start gap-3 rounded-xl border border-sky-100 bg-sky-50 p-4 dark:border-sky-800/40 dark:bg-sky-950/30">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/50">
@@ -284,7 +274,6 @@ function SessionDetailModal({ session, onClose }: { session: DashboardSession; o
         {/* Session info grid */}
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Session ID", value: safeId(session) },
             { label: "Topic", value: sessionTopic(session) },
             { label: "Date", value: friendlyDate(session.session_date) },
             { label: "Time", value: time },
@@ -308,12 +297,7 @@ function SessionDetailModal({ session, onClose }: { session: DashboardSession; o
 
         {/* Meet link — never show raw URL */}
         {session.meet_link?.trim() && session.id ? (
-          <JoinMeetingButton
-            href={session.meet_link}
-            inAppSessionId={session.id}
-            meetRole="mentor"
-            variant="full"
-          />
+          <MentorJoinMeetingButton session={session} variant="full" />
         ) : null}
 
         <div className="flex justify-end">
@@ -329,6 +313,7 @@ function SessionDetailModal({ session, onClose }: { session: DashboardSession; o
 
 // ─── Component ────────────────────────────────────────────────
 export function MentorDashboardOverview() {
+  const { sessionAcceptedAt, sessionRefreshAt } = useNotifications();
   const [data, setData] = useState<MentorDashboardData | null>(null);
   const [extraSessions, setExtraSessions] = useState<DashboardSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -337,12 +322,28 @@ export function MentorDashboardOverview() {
   // const [editSession, setEditSession] = useState<DashboardSession | null>(null);
 
   function normalizeSessions(raw: unknown): DashboardSession[] {
-    if (Array.isArray(raw)) return raw as DashboardSession[];
-    const r = raw as Record<string, unknown>;
-    for (const key of ["items", "data", "sessions", "results", "requests"]) {
-      if (Array.isArray(r?.[key])) return r[key] as DashboardSession[];
+    let list: DashboardSession[] = [];
+    if (Array.isArray(raw)) list = raw as DashboardSession[];
+    else {
+      const r = raw as Record<string, unknown>;
+      for (const key of ["items", "data", "sessions", "results", "requests"]) {
+        if (Array.isArray(r?.[key])) {
+          list = r[key] as DashboardSession[];
+          break;
+        }
+      }
     }
-    return [];
+    return list.map((s) => {
+      const rec = s as unknown as Record<string, unknown>;
+      const ymd =
+        calendarDateFromRecord(rec) || calendarDateFromApiValue(s.session_date);
+      const readable_id = sessionReadableIdFromRecord(rec);
+      return {
+        ...s,
+        ...(ymd ? { session_date: ymd } : {}),
+        ...(readable_id !== "—" ? { readable_id } : {}),
+      };
+    });
   }
 
   async function load() {
@@ -363,7 +364,7 @@ export function MentorDashboardOverview() {
       }
 
       if (allResult.status === "fulfilled") {
-        const list = normalizeSessions(allResult.value).filter(s => isNotYetConducted(s.status));
+        const list = normalizeSessions(allResult.value).filter((s) => isUpcomingLiveSession(s.status));
         setExtraSessions(list);
       }
       // If allResult fails we still have upcomingSessions from the dashboard — no error needed
@@ -380,6 +381,14 @@ export function MentorDashboardOverview() {
     });
     return () => cancelAnimationFrame(id);
   }, []);
+
+  useEffect(() => {
+    if (sessionAcceptedAt === 0 && sessionRefreshAt === 0) return;
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [sessionAcceptedAt, sessionRefreshAt]);
 
   // ── Quick stats ──────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -425,7 +434,7 @@ export function MentorDashboardOverview() {
       }
     }
     return merged
-      .filter(s => isNotYetConducted(s.status))
+      .filter((s) => isUpcomingLiveSession(s.status))
       .sort((a, b) => {
         const da = new Date(a.session_date ?? "").getTime() || 0;
         const db = new Date(b.session_date ?? "").getTime() || 0;
@@ -509,7 +518,7 @@ export function MentorDashboardOverview() {
                     className="border-b border-slate-100 transition hover:bg-sky-50/40 dark:border-slate-700/60 dark:hover:bg-sky-950/20"
                   >
                     <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700 dark:text-slate-300">
-                      {safeId(s)}
+                      {s.readable_id ?? "—"}
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
                       {studentName(s)}
@@ -525,12 +534,7 @@ export function MentorDashboardOverview() {
                     </td>
                     <td className="px-4 py-3">
                       {s.meet_link?.trim() && s.id ? (
-                        <JoinMeetingButton
-                          href={s.meet_link}
-                          inAppSessionId={s.id}
-                          meetRole="mentor"
-                          variant="compact"
-                        />
+                        <MentorJoinMeetingButton session={s} variant="compact" />
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}

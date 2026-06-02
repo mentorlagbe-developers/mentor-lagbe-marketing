@@ -11,12 +11,20 @@ import {
   XCircle,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useNotifications } from "@/lib/notifications-context";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  calendarDateFromApiValue,
+  calendarDateFromRecord,
+  matchesDayFilter,
+  type DayFilterKey,
+} from "@/lib/session-datetime";
+import { sessionReadableIdFromRecord } from "@/lib/session-readable-id";
 
-type DayFilter = "today" | "yesterday" | "tomorrow" | "all";
+type DayFilter = DayFilterKey;
 type SessionRequest = {
   id: string;           // broadcast / request row id
   session_id?: string;  // the actual session UUID — needed for accept/decline
@@ -60,10 +68,6 @@ function sessionUuid(s: SessionRequest): string {
   return s.session_id ?? s.id;
 }
 
-function safeId(s: SessionRequest): string {
-  return s.readable_id ?? s.id.slice(0, 8);
-}
-
 /** Converts any date string (ISO timestamp or YYYY-MM-DD) to "May 12, 2026" */
 function friendlyDate(raw?: string): string {
   if (!raw) return "TBD";
@@ -103,30 +107,22 @@ function isPending(s: SessionRequest) {
   return s.status.toLowerCase().includes("pending") || s.status.toLowerCase().includes("waiting") || s.status.toLowerCase() === "pending_mentor";
 }
 
-/** Returns YYYY-MM-DD for today ± offset days */
-function isoDate(offsetDays = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Normalise any date string (ISO timestamp or YYYY-MM-DD) to YYYY-MM-DD */
-function toDateStr(raw?: string): string {
-  if (!raw) return "";
-  if (raw.length === 10) return raw; // already YYYY-MM-DD
-  return new Date(raw).toISOString().slice(0, 10);
+function normalizeSessionRequest(row: SessionRequest): SessionRequest {
+  const fromRecord = calendarDateFromRecord(row as unknown as Record<string, unknown>);
+  const session_date =
+    fromRecord ||
+    calendarDateFromApiValue(row.session_date) ||
+    calendarDateFromApiValue((row as { sessionDate?: string }).sessionDate);
+  const readable_id = sessionReadableIdFromRecord(row as unknown as Record<string, unknown>);
+  return {
+    ...row,
+    session_date,
+    readable_id: readable_id !== "—" ? readable_id : row.readable_id,
+  };
 }
 
 function filterByDay(list: SessionRequest[], filter: DayFilter): SessionRequest[] {
-  if (filter === "all") return list;
-  const target: Record<DayFilter, string> = {
-    today: isoDate(0),
-    yesterday: isoDate(-1),
-    tomorrow: isoDate(1),
-    all: "",
-  };
-  const t = target[filter];
-  return list.filter(s => toDateStr(s.session_date) === t);
+  return list.filter((s) => matchesDayFilter(s.session_date ?? "", filter));
 }
 
 // ─── Gender badge ─────────────────────────────────────────────
@@ -170,6 +166,7 @@ function SessionModal({
   onClose: () => void;
   onUpdate: (id: string, status: string) => void;
 }) {
+  const { notifySessionsUpdated } = useNotifications();
   const [step, setStep] = useState<ModalStep>("view");
   // const [meetLink, setMeetLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -200,6 +197,7 @@ function SessionModal({
         // Legacy Google Meet: body: JSON.stringify({ meetLink: meetLink.trim() }),
       });
       onUpdate(session.id, "accepted");
+      notifySessionsUpdated();
       setStep("done");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong.";
@@ -245,7 +243,7 @@ function SessionModal({
         ) : step === "view" ? (
           <>
             <h4 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Session Details</h4>
-            <p className="mb-5 font-mono text-xs text-slate-400">ID: {safeId(session)}</p>
+            <p className="mb-5 font-mono text-xs text-slate-400">ID: {session.readable_id ?? "—"}</p>
 
             {/* Student card */}
             <div className="mb-4 overflow-hidden rounded-2xl border border-brand-primary/20">
@@ -394,7 +392,7 @@ export function MentorSessionRequests() {
           const found = ["items", "data", "sessions", "results", "requests"].find(k => Array.isArray(r?.[k]));
           list = found ? (r[found] as SessionRequest[]) : [];
         }
-        setRequests(list);
+        setRequests(list.map(normalizeSessionRequest));
       } else {
         setError("Could not load session requests.");
       }
@@ -534,7 +532,7 @@ export function MentorSessionRequests() {
                       className="border-b border-slate-100 transition hover:bg-sky-50/40 dark:border-slate-700/60 dark:hover:bg-sky-950/20"
                     >
                       <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700 dark:text-slate-300">
-                        {safeId(s)}
+                        {s.readable_id ?? "—"}
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-slate-800 dark:text-slate-200">{studentName(s)}</p>

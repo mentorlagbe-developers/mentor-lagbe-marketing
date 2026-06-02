@@ -1,5 +1,8 @@
 // Shared session normalizer for mentor components
 
+import { calendarDateFromApiValue, calendarDateFromRecord, localYmd } from "@/lib/session-datetime";
+import { sessionReadableIdFromRecord } from "@/lib/session-readable-id";
+
 export type MentorSession = {
   id: string;
   readableId: string;
@@ -26,15 +29,8 @@ function num(v: unknown, fallback = 0): number {
   return typeof v === "number" ? v : fallback;
 }
 
-function getReadableId(item: Record<string, unknown>): string {
-  const isUuid = (s: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
-    /^[0-9a-f]{32}$/i.test(s.trim());
-  for (const key of ["readableId", "sessionReadableId", "bookingReadableId"]) {
-    const v = str(item[key]);
-    if (v && !isUuid(v)) return v;
-  }
-  return "N/A";
+export function getSessionReadableId(item: Record<string, unknown>): string {
+  return sessionReadableIdFromRecord(item);
 }
 
 function getStudentField(item: Record<string, unknown>, ...keys: string[]): string {
@@ -70,22 +66,26 @@ function getTopicName(item: Record<string, unknown>): string {
 }
 
 export function normalizeSession(item: Record<string, unknown>): MentorSession {
+  const sessionDate =
+    calendarDateFromRecord(item) ||
+    calendarDateFromApiValue(str(item.sessionDate)) ||
+    calendarDateFromApiValue(str(item.session_date));
   return {
     id: str(item.id, crypto.randomUUID()),
-    readableId: getReadableId(item),
+    readableId: getSessionReadableId(item),
     status: str(item.status, "unknown"),
-    sessionDate: str(item.sessionDate),
-    startTime: str(item.startTime),
-    endTime: str(item.endTime),
+    sessionDate,
+    startTime: str(item.startTime) || str(item.start_time) || str(item.startTime12h),
+    endTime: str(item.endTime) || str(item.end_time) || str(item.endTime12h),
+    meetLink: str(item.meetLink) || str(item.meet_link),
     durationMinutes: num(item.durationMinutes),
-    priceBdt: str(item.priceBdt, "0"),
+    priceBdt: str(item.priceBdt) || str(item.price_bdt, "0"),
     topicName: getTopicName(item),
     customTopicName: str(item.customTopicName),
     studentId: getStudentField(item, "studentId", "userId"),
     studentName: getStudentField(item, "studentName", "fullName", "name"),
     studentGender: getStudentField(item, "studentGender", "gender"),
     studentReadableId: getStudentField(item, "studentReadableId", "studentId"),
-    meetLink: str(item.meetLink),
     createdAt: str(item.createdAt),
   };
 }
@@ -93,12 +93,16 @@ export function normalizeSession(item: Record<string, unknown>): MentorSession {
 export async function fetchMentorSessions(apiFetch: <T>(path: string, opts?: Record<string, unknown>) => Promise<T>): Promise<MentorSession[]> {
   let raw: unknown;
   try {
-    raw = await apiFetch("/live-sessions/sessions/me", { auth: true });
+    raw = await apiFetch("/live-sessions/mentor/sessions", { auth: true });
   } catch {
     try {
-      raw = await apiFetch("/live-sessions/bookings/me", { auth: true });
+      raw = await apiFetch("/live-sessions/sessions/me", { auth: true });
     } catch {
-      return [];
+      try {
+        raw = await apiFetch("/live-sessions/bookings/me", { auth: true });
+      } catch {
+        return [];
+      }
     }
   }
 
@@ -130,13 +134,55 @@ export function formatStatus(s: string): string {
 
 export function isToday(dateStr: string): boolean {
   if (!dateStr) return false;
-  const d = new Date(dateStr);
-  const today = new Date();
+  return calendarDateFromApiValue(dateStr) === localYmd();
+}
+
+/** Accepted / approved sessions that are not finished yet (for upcoming lists). */
+export function isUpcomingLiveSession(status = ""): boolean {
+  const s = status.toLowerCase();
+  if (
+    s.includes("completed") ||
+    s.includes("cancel") ||
+    s.includes("declin") ||
+    s.includes("expired") ||
+    s.includes("rejected") ||
+    s.includes("failed")
+  ) {
+    return false;
+  }
   return (
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate()
+    s.includes("accepted") ||
+    s.includes("approved") ||
+    s.includes("mentor_accepted") ||
+    s.includes("scheduled") ||
+    s.includes("confirmed") ||
+    s.includes("paid") ||
+    s.includes("active")
   );
+}
+
+export type MentorHistoryFilter = "all" | "upcoming" | "approved" | "pending" | "canceled";
+
+export function matchesMentorHistoryFilter(status: string, filter: MentorHistoryFilter): boolean {
+  const s = status.toLowerCase();
+  if (filter === "all") return true;
+  if (filter === "upcoming") return isUpcomingLiveSession(status);
+  if (filter === "approved") {
+    return (
+      s.includes("approved") ||
+      s.includes("accepted") ||
+      s.includes("confirmed") ||
+      s.includes("scheduled") ||
+      s.includes("paid")
+    );
+  }
+  if (filter === "pending") {
+    return s.includes("pending") || s.includes("waiting") || s === "pending_mentor";
+  }
+  if (filter === "canceled") {
+    return s.includes("cancel") || s.includes("declin") || s.includes("expired") || s.includes("rejected");
+  }
+  return true;
 }
 
 export function statusTone(status: string): "success" | "warning" | "danger" | "info" {

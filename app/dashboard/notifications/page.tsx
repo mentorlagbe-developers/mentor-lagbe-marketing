@@ -22,6 +22,7 @@ import {
   Star,
   UserCheck,
   Wifi,
+  WifiOff,
   X,
 } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
@@ -53,7 +54,9 @@ function resolveIcon(n: AppNotification): IconMeta {
     return { Icon: Star, dot: "bg-amber-400", label: "Rating" };
   if (title.includes("message") || title.includes("chat"))
     return { Icon: MessageSquare, dot: "bg-violet-500", label: "Message" };
-  if (title.includes("heartbeat") || title.includes("connected"))
+  if (title.includes("connection failed") || title.includes("offline"))
+    return { Icon: WifiOff, dot: "bg-rose-500", label: "Connection" };
+  if (title.includes("heartbeat") || title.includes("status confirmed") || title.includes("connected"))
     return { Icon: Wifi, dot: "bg-sky-500", label: "System" };
   if (title.includes("profile") || title.includes("verified") || title.includes("approved"))
     return { Icon: UserCheck, dot: "bg-teal-500", label: "Profile" };

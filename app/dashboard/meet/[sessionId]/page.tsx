@@ -3,14 +3,40 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ApiError } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { Button } from "@/app/components/ui/button";
+import { fetchMentorSessions } from "@/app/dashboard/_components/mentor/mentor-session-utils";
+import { fetchStudentBookingDetail } from "@/lib/live-sessions-student-api";
+import {
+  evaluateMeetingJoinAccess,
+  meetingJoinDisabledTitle,
+} from "@/lib/session-join-timing";
 import {
   JitsiSessionRoom,
   fetchMentorJitsiConference,
   fetchStudentJitsiConference,
   type JitsiConferenceConfig,
 } from "@/video_conferancing";
+
+async function loadSessionJoinRecord(
+  sessionId: string,
+  role: "mentor" | "student",
+): Promise<Record<string, unknown> | null> {
+  if (role === "mentor") {
+    const sessions = await fetchMentorSessions(apiFetch);
+    const match = sessions.find((s) => s.id === sessionId);
+    return match ? (match as unknown as Record<string, unknown>) : null;
+  }
+  const detail = await fetchStudentBookingDetail(sessionId);
+  return {
+    status: detail.status,
+    sessionDate: detail.sessionDate,
+    startTime: detail.startTime,
+    endTime: detail.endTime,
+    durationMinutes: detail.durationMinutes,
+    id: detail.id,
+  };
+}
 
 export default function MeetSessionPage() {
   const params = useParams();
@@ -30,6 +56,19 @@ export default function MeetSessionPage() {
       setLoading(true);
       setError(null);
       try {
+        const record = await loadSessionJoinRecord(sessionId, role);
+        const access = record ? evaluateMeetingJoinAccess(record) : null;
+        if (!access?.canJoin) {
+          if (!cancelled) {
+            setError(
+              access
+                ? meetingJoinDisabledTitle(access)
+                : "Session not found or join is unavailable.",
+            );
+          }
+          return;
+        }
+
         const data =
           role === "mentor"
             ? await fetchMentorJitsiConference(sessionId)

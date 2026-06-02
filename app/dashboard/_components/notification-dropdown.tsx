@@ -55,7 +55,9 @@ function resolveIcon(n: AppNotification): IconMeta {
     return { Icon: Star, dot: "bg-amber-400", ring: "ring-amber-400/20" };
   if (title.includes("message") || title.includes("chat"))
     return { Icon: MessageSquare, dot: "bg-violet-500", ring: "ring-violet-500/20" };
-  if (title.includes("heartbeat") || title.includes("connected"))
+  if (title.includes("connection failed") || title.includes("offline"))
+    return { Icon: WifiOff, dot: "bg-rose-500", ring: "ring-rose-500/20" };
+  if (title.includes("heartbeat") || title.includes("status confirmed") || title.includes("connected"))
     return { Icon: Wifi, dot: "bg-sky-500", ring: "ring-sky-500/20" };
   if (title.includes("profile") || title.includes("verified") || title.includes("approved"))
     return { Icon: UserCheck, dot: "bg-teal-500", ring: "ring-teal-500/20" };

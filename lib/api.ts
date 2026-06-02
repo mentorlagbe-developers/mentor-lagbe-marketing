@@ -118,9 +118,12 @@ export async function apiFetch<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { auth = false, _retried = false, headers, ...rest } = options;
+  const { auth = false, _retried = false, headers, body, ...rest } = options;
   const requestHeaders = new Headers(headers ?? {});
-  requestHeaders.set("Content-Type", "application/json");
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  if (!isFormData && !requestHeaders.has("Content-Type")) {
+    requestHeaders.set("Content-Type", "application/json");
+  }
 
   if (auth) {
     const accessToken = getAccessToken();
@@ -131,6 +134,7 @@ export async function apiFetch<T>(
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
+    body,
     headers: requestHeaders,
   });
 

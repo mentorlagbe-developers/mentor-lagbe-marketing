@@ -3,13 +3,16 @@ import { LiveSessionBookingFlow } from "@/app/dashboard/_components/live-session
 import { LiveSessionOverview } from "@/app/dashboard/_components/live-session/live-session-overview";
 import { MentorRegistrationPanel } from "@/app/dashboard/_components/admin/mentor-registration-panel";
 import { AdminSessionRequestsPanel } from "@/app/dashboard/_components/admin/admin-session-requests-panel";
+import { AdminCertificationsPanel } from "./admin/admin-certifications-panel";
 import { ProfileSection } from "./profile/profile-section";
 import { SettingsSection } from "@/app/dashboard/_components/settings/settings-section";
 import { BookingsSection } from "@/app/dashboard/_components/bookings/bookings-section";
 import { StudentDashboardOverview } from "@/app/dashboard/_components/student/student-dashboard-overview";
 import { MentorDashboardOverview } from "@/app/dashboard/_components/mentor/mentor-dashboard-overview";
 import { MentorSessionRequests } from "@/app/dashboard/_components/mentor/mentor-session-requests";
+import { MentorLiveSessionsPanel } from "@/app/dashboard/_components/mentor/mentor-live-sessions-panel";
 import { PaymentsSection } from "@/app/dashboard/_components/payments/payments-section";
+import { CertificationsSection } from "@/app/dashboard/_components/certifications/certifications-section";
 import { HelpCenterSection } from "@/app/dashboard/_components/help-center/help-center-section";
 import { AdminPaymentsPanel } from "@/app/dashboard/_components/admin/admin-payments-panel";
 import type { UserRole } from "@/lib/mock-auth";
@@ -32,6 +35,10 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
     return <MentorSessionRequests />;
   }
 
+  if (role === "teacher" && section === "mentor-live-sessions") {
+    return <MentorLiveSessionsPanel />;
+  }
+
   if (section === "live-session") {
     return <LiveSessionOverview />;
   }
@@ -52,6 +59,10 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
     return <BookingsSection />;
   }
 
+  if (section === "certifications" && role === "student") {
+    return <CertificationsSection />;
+  }
+
   if (section === "payments" && role === "student") {
     return <PaymentsSection />;
   }
@@ -62,6 +73,10 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
 
   if (role === "superadmin" && section === "admin-session-requests") {
     return <AdminSessionRequestsPanel />;
+  }
+
+  if (role === "superadmin" && section === "admin-certifications") {
+    return <AdminCertificationsPanel />;
   }
 
   if (role === "superadmin" && section === "admin-payments") {
