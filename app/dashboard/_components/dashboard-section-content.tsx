@@ -12,6 +12,7 @@ import { MentorDashboardOverview } from "@/app/dashboard/_components/mentor/ment
 import { MentorSessionRequests } from "@/app/dashboard/_components/mentor/mentor-session-requests";
 import { MentorLiveSessionsPanel } from "@/app/dashboard/_components/mentor/mentor-live-sessions-panel";
 import { MentorStudentsSection } from "@/app/dashboard/_components/mentor/mentor-students-section";
+import { MentorEarningsSection } from "@/app/dashboard/_components/mentor/mentor-earnings-section";
 import { PaymentsSection } from "@/app/dashboard/_components/payments/payments-section";
 import { CertificationsSection } from "@/app/dashboard/_components/certifications/certifications-section";
 import { HelpCenterSection } from "@/app/dashboard/_components/help-center/help-center-section";
@@ -43,6 +44,10 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
 
   if (role === "teacher" && section === "my-students") {
     return <MentorStudentsSection />;
+  }
+
+  if (role === "teacher" && section === "earnings") {
+    return <MentorEarningsSection />;
   }
 
   if (section === "live-session") {
