@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Settings,
+  ScrollText,
   ShieldCheck,
   UserCircle2,
   Users,
@@ -34,6 +35,7 @@ export type DashboardSectionKey =
   | "mentor-management"
   | "reports"
   | "help-center"
+  | "privacy-policies"
   | "platform-settings"
   | "security-center"
   | "pricing"
@@ -134,6 +136,12 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
     href: "/dashboard/help-center",
     icon: CircleHelp,
   },
+  "privacy-policies": {
+    id: "privacy-policies",
+    label: "Privacy & Policies",
+    href: "/dashboard/privacy-policies",
+    icon: ScrollText,
+  },
   "platform-settings": {
     id: "platform-settings",
     label: "Platform Settings",
@@ -179,8 +187,8 @@ const allMenuItems: Record<DashboardSectionKey, DashboardMenuItem> = {
 };
 
 const roleMenuKeys: Record<UserRole, DashboardSectionKey[]> = {
-  student: ["dashboard", "live-session", "certifications", "bookings", "payments", "help-center", "pricing"],
-  teacher: ["dashboard", "my-students", "session-requests", "mentor-live-sessions", "earnings", "help-center"],
+  student: ["dashboard", "live-session", "certifications", "bookings", "payments", "help-center", "privacy-policies", "pricing"],
+  teacher: ["dashboard", "my-students", "session-requests", "mentor-live-sessions", "earnings", "help-center", "privacy-policies"],
   admin: ["dashboard", "user-management", "mentor-management", "reports", "help-center"],
   superadmin: [
     "dashboard",

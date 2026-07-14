@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Award, BookOpen, Star, Tag, Users } from "lucide-react";
 import type { CertificationExamCard } from "@/lib/certifications-api";
-import { getAccessToken } from "@/lib/auth-store";
 
 function formatBdt(value: string | number) {
   const amount = typeof value === "string" ? Number(value) : value;
@@ -21,9 +20,11 @@ function levelLabel(level: CertificationExamCard["level"]) {
 
 type CertificationExamCardViewProps = {
   exam: CertificationExamCard;
+  onBookNow?: (exam: CertificationExamCard) => void;
+  isBooking?: boolean;
 };
 
-export function CertificationExamCardView({ exam }: CertificationExamCardViewProps) {
+export function CertificationExamCardView({ exam, onBookNow, isBooking = false }: CertificationExamCardViewProps) {
   const router = useRouter();
   const hasDiscount = Boolean(exam.salePriceBdt && Number(exam.discountPercent) > 0);
 
@@ -97,42 +98,52 @@ export function CertificationExamCardView({ exam }: CertificationExamCardViewPro
         </div>
       </div>
 
-      <div className="mt-4 flex items-end justify-between gap-3">
-        <div>
+      <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           {hasDiscount ? (
-            <div className="flex items-center gap-2">
-              <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+              <p className="text-xl font-bold leading-none text-slate-900 dark:text-slate-100">
                 {formatBdt(exam.salePriceBdt ?? exam.effectivePriceBdt)}
               </p>
               <p className="text-sm text-slate-400 line-through">{formatBdt(exam.originalPriceBdt)}</p>
             </div>
           ) : (
-            <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            <p className="text-xl font-bold leading-none text-slate-900 dark:text-slate-100">
               {formatBdt(exam.effectivePriceBdt || exam.originalPriceBdt)}
             </p>
           )}
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-3">
           {hasDiscount ? (
-            <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <p className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <Tag className="h-3 w-3" />
               Save {exam.discountPercent}%
             </p>
-          ) : null}
+          ) : (
+            <span />
+          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {onBookNow ? (
+              <button
+                type="button"
+                onClick={() => onBookNow(exam)}
+                disabled={isBooking}
+                className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-300 dark:hover:bg-sky-900/40"
+              >
+                {isBooking ? "Booking..." : "Book now"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                router.push(`/certifications/${exam.slug}`);
+              }}
+              className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:ring-offset-slate-900"
+            >
+              View details
+            </button>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            const token = getAccessToken();
-            if (!token) {
-              router.push("/?auth=login");
-              return;
-            }
-            router.push(`/certifications/${exam.slug}`);
-          }}
-          className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:ring-offset-slate-900"
-        >
-          View details
-        </button>
       </div>
       </div>
     </article>

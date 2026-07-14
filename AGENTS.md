@@ -24,7 +24,7 @@
 | Mentor heartbeat (60s) | Done | Emitted when `role === "teacher"` |
 | Notifications REST + mark read | Done | Was partial; now parses `unreadCount` |
 | Admin pending payments | Done | `/dashboard/admin-payments` (superadmin) |
-| Student Payments page (history) | Mock | [`lib/mock-payments.ts`](lib/mock-payments.ts) until list API exists |
+| Student Payments page (history) | Done | [`lib/student-payments-api.ts`](lib/student-payments-api.ts) · `GET /payments/me` |
 | Bookings list pagination query | Partial | `GET .../bookings/me` without `page`/`status` params yet |
 | Mentor cancel session | Not done | `POST .../sessions/:id/cancel` |
 | Token refresh → socket reconnect | Not done | Manual reconnect on remount only |

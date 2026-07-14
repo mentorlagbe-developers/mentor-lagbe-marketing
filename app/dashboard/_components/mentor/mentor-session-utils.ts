@@ -85,7 +85,12 @@ export function normalizeSession(item: Record<string, unknown>): MentorSession {
     studentId: getStudentField(item, "studentId", "userId"),
     studentName: getStudentField(item, "studentName", "fullName", "name"),
     studentGender: getStudentField(item, "studentGender", "gender"),
-    studentReadableId: getStudentField(item, "studentReadableId", "studentId"),
+    studentReadableId: getStudentField(
+      item,
+      "studentReadableId",
+      "student_readable_id",
+      "readableId",
+    ),
     createdAt: str(item.createdAt),
   };
 }

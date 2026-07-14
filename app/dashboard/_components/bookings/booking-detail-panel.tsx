@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { JoinMeetingButton } from "@/app/components/ui/join-meeting-button";
 import { ApiError } from "@/lib/api";
-import { joinAccessShowsPaymentForm, type JoinAccessState } from "@/lib/join-access";
+import {
+  joinAccessShowsPaymentCountdown,
+  joinAccessShowsPaymentForm,
+  studentBookingCanCancel,
+  type JoinAccessState,
+} from "@/lib/join-access";
 import {
   cancelStudentBooking,
   fetchStudentBookingDetail,
@@ -172,6 +177,11 @@ export function BookingDetailPanel({
   if (!detail) return null;
 
   const showPaymentForm = joinAccess && joinAccessShowsPaymentForm(joinAccess.state);
+  const canCancelBooking = studentBookingCanCancel({
+    status: detail.status,
+    joinAccessState: joinAccess?.state,
+    joinBlockReason: joinWindow.reason,
+  });
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -214,7 +224,9 @@ export function BookingDetailPanel({
       {joinAccess?.message ? (
         <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200">
           {joinAccess.message}
-          {countdown ? <span className="mt-1 block text-xs font-medium text-amber-700 dark:text-amber-300">{countdown}</span> : null}
+          {countdown && joinAccessShowsPaymentCountdown(joinAccess.state) ? (
+            <span className="mt-1 block text-xs font-medium text-amber-700 dark:text-amber-300">{countdown}</span>
+          ) : null}
         </p>
       ) : null}
 
@@ -289,7 +301,7 @@ export function BookingDetailPanel({
       {actionMessage ? <p className="text-sm text-slate-600 dark:text-slate-300">{actionMessage}</p> : null}
 
       <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
-        {detail.status.includes("pending") || detail.status.includes("payment") ? (
+        {canCancelBooking ? (
           <Button variant="secondary" size="sm" disabled={isSubmitting} onClick={() => void handleCancel()}>
             Cancel booking
           </Button>

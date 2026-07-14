@@ -3,15 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormik } from "formik";
 import {
+  AlertTriangle,
+  Banknote,
+  Calendar,
   CalendarClock,
   Check,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   Eye,
+  Hash,
   Loader2,
   PencilLine,
   RefreshCw,
+  Search,
   ShieldAlert,
+  Smartphone,
   UserRound,
   X,
   XCircle,
@@ -40,6 +47,11 @@ import { Button } from "@/app/components/ui/button";
 import { Modal } from "@/app/components/ui/modal";
 import { Pagination } from "@/app/components/ui/pagination";
 import { ToastCenter, type ToastAction, type ToastMessage, type ToastVariant } from "@/app/components/ui/toast-center";
+import {
+  calendarDateFromRecord,
+  matchesDayFilter,
+  type DayFilterKey,
+} from "@/lib/session-datetime";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
@@ -134,12 +146,293 @@ function formatSessionScheduleDate(row: AdminSessionRow): string {
   });
 }
 
+type AdminStatusFilter = "all" | "canceled" | "payment_pending" | "payment_approved" | "expired";
+
+const ADMIN_STATUS_FILTERS: { value: AdminStatusFilter; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "payment_pending", label: "Payment pending" },
+  { value: "payment_approved", label: "Payment approved" },
+  { value: "canceled", label: "Canceled" },
+  { value: "expired", label: "Expired" },
+];
+
+const DAY_FILTERS: { value: DayFilterKey; label: string }[] = [
+  { value: "all", label: "All dates" },
+  { value: "today", label: "Today" },
+  { value: "tomorrow", label: "Tomorrow" },
+  { value: "yesterday", label: "Yesterday" },
+];
+
+const URGENT_WINDOW_MINUTES = 30;
+
+function classifyAdminSessionStatus(status: string): AdminStatusFilter | "other" {
+  const s = status.toLowerCase().replace(/\s+/g, "_");
+  if (s.includes("expir")) return "expired";
+  if (s.includes("cancel")) return "canceled";
+  if ((s.includes("payment") && s.includes("approv")) || s === "payment_approved" || s === "paid") {
+    return "payment_approved";
+  }
+  if (
+    s.includes("payment_pending") ||
+    s.includes("pending_payment") ||
+    (s.includes("payment") && s.includes("pending")) ||
+    s.includes("payment_submitted") ||
+    s.includes("awaiting_payment")
+  ) {
+    return "payment_pending";
+  }
+  return "other";
+}
+
 function badgeTone(status: string) {
+  const cat = classifyAdminSessionStatus(status);
+  if (cat === "payment_approved") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200";
+  }
+  if (cat === "payment_pending") {
+    return "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200";
+  }
+  if (cat === "canceled") {
+    return "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200";
+  }
+  if (cat === "expired") {
+    return "border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-900/50 dark:bg-orange-950/40 dark:text-orange-200";
+  }
   const b = bucketAdminSessionStatus(status);
   if (b === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200";
   if (b === "canceled") return "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200";
   if (b === "requested") return "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-100";
   return "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100";
+}
+
+function sessionDateYmd(row: AdminSessionRow): string {
+  return row.sessionDate?.trim() || calendarDateFromRecord(row.raw);
+}
+
+function isSessionStartingWithinMinutes(row: AdminSessionRow, minutes: number): boolean {
+  const start = sessionInstantFromRow(row);
+  if (!start || Number.isNaN(start.getTime())) return false;
+  const now = Date.now();
+  const startMs = start.getTime();
+  return startMs > now && startMs - now <= minutes * 60 * 1000;
+}
+
+function matchesAdminStatusFilter(status: string, filter: AdminStatusFilter): boolean {
+  if (filter === "all") return true;
+  return classifyAdminSessionStatus(status) === filter;
+}
+
+function matchesAdminDateFilter(row: AdminSessionRow, dayFilter: DayFilterKey, customDate: string): boolean {
+  const ymd = sessionDateYmd(row);
+  if (customDate.trim()) return ymd === customDate.trim();
+  return matchesDayFilter(ymd, dayFilter);
+}
+
+function matchesSessionSearch(row: AdminSessionRow, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const sessionRef = row.readableId.toLowerCase();
+  const studentRef = pickParticipantReadableId(row.raw, "student").toLowerCase();
+  const studentId = (row.studentId ?? "").toLowerCase();
+  return sessionRef.includes(q) || studentRef.includes(q) || studentId.includes(q);
+}
+
+type AdminSessionFilterState = {
+  search: string;
+  statusFilter: AdminStatusFilter;
+  dayFilter: DayFilterKey;
+  customDate: string;
+  urgentOnly: boolean;
+};
+
+function filterAdminSessionRows(rows: AdminSessionRow[], filters: AdminSessionFilterState): AdminSessionRow[] {
+  return rows.filter((row) => {
+    if (filters.urgentOnly && !isSessionStartingWithinMinutes(row, URGENT_WINDOW_MINUTES)) return false;
+    if (!matchesAdminStatusFilter(row.status, filters.statusFilter)) return false;
+    if (!matchesAdminDateFilter(row, filters.dayFilter, filters.customDate)) return false;
+    if (!matchesSessionSearch(row, filters.search)) return false;
+    return true;
+  });
+}
+
+function hasActiveAdminSessionFilters(filters: AdminSessionFilterState): boolean {
+  return Boolean(
+    filters.search.trim() ||
+      filters.statusFilter !== "all" ||
+      filters.dayFilter !== "all" ||
+      filters.customDate.trim() ||
+      filters.urgentOnly
+  );
+}
+
+function filterChipClass(active: boolean, variant: "default" | "urgent" | "success" | "warning" | "danger" = "default") {
+  if (!active) {
+    return "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700";
+  }
+  if (variant === "urgent") {
+    return "border-rose-300 bg-rose-50 text-rose-800 shadow-sm ring-1 ring-rose-200/80 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-200";
+  }
+  if (variant === "success") {
+    return "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200";
+  }
+  if (variant === "warning") {
+    return "border-amber-300 bg-amber-50 text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200";
+  }
+  if (variant === "danger") {
+    return "border-rose-300 bg-rose-50 text-rose-800 shadow-sm dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-200";
+  }
+  return "border-sky-300 bg-sky-50 text-sky-900 shadow-sm ring-1 ring-sky-200/80 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-100";
+}
+
+const FILTER_SELECT_CLASS =
+  "h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-sky-300 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-600";
+
+function FilterDropdown({
+  label,
+  value,
+  onChange,
+  options,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  className?: string;
+}) {
+  return (
+    <label className={cn("block min-w-[10.5rem] flex-1 sm:max-w-[14rem] sm:flex-none", className)}>
+      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+        {label}
+      </span>
+      <div className="relative">
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={FILTER_SELECT_CLASS}>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          aria-hidden
+        />
+      </div>
+    </label>
+  );
+}
+
+function AdminSessionFiltersBar({
+  filters,
+  onChange,
+  resultCount,
+  totalCount,
+}: {
+  filters: AdminSessionFilterState;
+  onChange: (next: AdminSessionFilterState) => void;
+  resultCount: number;
+  totalCount: number;
+}) {
+  function patch(partial: Partial<AdminSessionFilterState>) {
+    onChange({ ...filters, ...partial });
+  }
+
+  return (
+    <div className="space-y-3 border-b border-slate-100 bg-slate-50/50 px-4 py-4 dark:border-slate-800 dark:bg-slate-800/20 sm:px-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          Showing <span className="font-semibold text-slate-800 dark:text-slate-200">{resultCount}</span> of{" "}
+          <span className="tabular-nums">{totalCount}</span> sessions
+        </p>
+        {hasActiveAdminSessionFilters(filters) ? (
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                search: "",
+                statusFilter: "all",
+                dayFilter: "all",
+                customDate: "",
+                urgentOnly: false,
+              })
+            }
+            className="text-xs font-semibold text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+          >
+            Clear filters
+          </button>
+        ) : null}
+      </div>
+
+      <label className="relative block">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
+          value={filters.search}
+          onChange={(e) => patch({ search: e.target.value })}
+          placeholder="Search by session ID (SES-26-…) or student ID (STU-…)"
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-600"
+        />
+      </label>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex shrink-0 flex-col justify-end">
+          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+            Priority
+          </span>
+          <button
+            type="button"
+            title={`Sessions starting within ${URGENT_WINDOW_MINUTES} minutes`}
+            className={cn(
+              "inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition",
+              filterChipClass(filters.urgentOnly, "urgent")
+            )}
+            onClick={() => patch({ urgentOnly: !filters.urgentOnly })}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Urgent · ≤{URGENT_WINDOW_MINUTES} min
+          </button>
+        </div>
+
+        <FilterDropdown
+          label="Status"
+          value={filters.statusFilter}
+          onChange={(value) => patch({ statusFilter: value as AdminStatusFilter })}
+          options={ADMIN_STATUS_FILTERS}
+        />
+
+        <FilterDropdown
+          label="Date"
+          value={filters.customDate.trim() ? "custom" : filters.dayFilter}
+          onChange={(value) => {
+            if (value === "custom") return;
+            patch({ dayFilter: value as DayFilterKey, customDate: "" });
+          }}
+          options={[
+            ...DAY_FILTERS,
+            ...(filters.customDate.trim()
+              ? [{ value: "custom" as const, label: `Custom · ${filters.customDate}` }]
+              : []),
+          ]}
+        />
+
+        <label className="block min-w-[10.5rem] flex-1 sm:max-w-[11.5rem] sm:flex-none">
+          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+            Pick date
+          </span>
+          <div className="relative">
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="date"
+              value={filters.customDate}
+              onChange={(e) => patch({ customDate: e.target.value, dayFilter: "all" })}
+              className={cn(FILTER_SELECT_CLASS, "pl-9")}
+              aria-label="Filter by specific date"
+            />
+          </div>
+        </label>
+      </div>
+    </div>
+  );
 }
 
 const statTones = {
@@ -241,9 +534,229 @@ function humanizeFieldLabel(key: string): string {
     .replace(/^per ?30 ?min/i, "Per 30 min");
 }
 
+const PAYMENT_SNAPSHOT_KEYS = new Set([
+  "pendingpayment",
+  "payment",
+  "paymentdetails",
+  "paymentinfo",
+  "billing",
+  "lastpayment",
+]);
+
+function isPaymentSnapshotKey(key: string): boolean {
+  return PAYMENT_SNAPSHOT_KEYS.has(key.toLowerCase().replace(/_/g, ""));
+}
+
+function parsePaymentSnapshotValue(val: unknown): SessionPendingPayment | null {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return null;
+  const block = val as Record<string, unknown>;
+  const hasPaymentShape =
+    block.amountBdt !== undefined ||
+    block.paymentMethod !== undefined ||
+    block.payerNumber !== undefined ||
+    block.referenceCode !== undefined ||
+    block.trxId !== undefined ||
+    (typeof block.status === "string" && /pay|submit|approv|reject|pending/i.test(block.status));
+  if (!hasPaymentShape) return null;
+
+  return {
+    id: pickStringOrNumber(block, ["id", "paymentId"]) || pickStringOrNumber(block, ["referenceCode"]) || "—",
+    status: pickStringOrNumber(block, ["status"]) || "—",
+    amountBdt: pickStringOrNumber(block, ["amountBdt", "amount", "totalBdt"]),
+    paymentMethod: pickStringOrNumber(block, ["paymentMethod", "method"]),
+    trxId: pickStringOrNumber(block, ["trxId", "transactionId", "trx_id"]),
+    payerNumber: pickStringOrNumber(block, ["payerNumber", "payerPhone", "phone"]),
+    referenceCode: pickStringOrNumber(block, ["referenceCode", "paymentReadableId", "readableId"]),
+    submittedAt: pickStringOrNumber(block, ["submittedAt", "createdAt", "paidAt"]) || undefined,
+  };
+}
+
+function paymentStatusTone(status: string) {
+  const s = status.toLowerCase().replace(/\s+/g, "_");
+  if (s.includes("approv") || s.includes("paid") || s.includes("success")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-200";
+  }
+  if (s.includes("reject") || s.includes("fail") || s.includes("cancel")) {
+    return "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/50 dark:text-rose-200";
+  }
+  return "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-200";
+}
+
+function formatPaymentSubmittedAt(iso?: string): string {
+  if (!iso?.trim()) return "—";
+  const d = new Date(iso.trim());
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function PaymentSnapshotDisplay({
+  payment,
+  title,
+}: {
+  payment: SessionPendingPayment;
+  title?: string;
+}) {
+  return (
+    <article className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/5 dark:border-slate-700 dark:bg-slate-900 dark:ring-white/5">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-linear-to-r from-slate-50 via-sky-50/30 to-white px-4 py-3.5 sm:px-5 dark:border-slate-800 dark:from-slate-900 dark:via-sky-950/20 dark:to-slate-900">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-200/80 bg-white shadow-sm dark:border-sky-800/60 dark:bg-sky-950/40">
+            <Banknote className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title ?? "Payment"}</p>
+            {payment.referenceCode ? (
+              <p className="mt-0.5 font-mono text-xs text-slate-500 dark:text-slate-400">{payment.referenceCode}</p>
+            ) : null}
+          </div>
+        </div>
+        <span
+          className={cn(
+            "inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em]",
+            paymentStatusTone(payment.status)
+          )}
+        >
+          {formatStatus(payment.status)}
+        </span>
+      </header>
+
+      <div className="p-4 sm:p-5">
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/90 px-3.5 py-3 dark:border-slate-700/80 dark:bg-slate-800/50">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Amount</dt>
+            <dd className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-slate-50">
+              {payment.amountBdt ? `৳${payment.amountBdt}` : "—"}
+            </dd>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/90 px-3.5 py-3 dark:border-slate-700/80 dark:bg-slate-800/50">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Method</dt>
+            <dd className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-slate-50">
+              {formatPaymentMethodLabel(payment.paymentMethod)}
+            </dd>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/90 px-3.5 py-3 dark:border-slate-700/80 dark:bg-slate-800/50">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Submitted</dt>
+            <dd className="mt-1.5 flex items-start gap-1.5 text-sm font-medium text-slate-800 dark:text-slate-100">
+              <Calendar className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <span>{formatPaymentSubmittedAt(payment.submittedAt)}</span>
+            </dd>
+          </div>
+        </dl>
+
+        {payment.payerNumber || payment.trxId ? (
+        <ul className="mt-4 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-100 dark:divide-slate-800 dark:border-slate-700/80">
+          {payment.payerNumber ? (
+            <li className="flex items-center justify-between gap-3 bg-slate-50/60 px-3.5 py-2.5 dark:bg-slate-800/40">
+              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                <Smartphone className="h-3.5 w-3.5" />
+                Payer number
+              </span>
+              <span className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-50">{payment.payerNumber}</span>
+            </li>
+          ) : null}
+          {payment.trxId ? (
+            <li className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-slate-900/60">
+              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                <Hash className="h-3.5 w-3.5" />
+                Transaction ID
+              </span>
+              <span className="max-w-[min(100%,14rem)] truncate font-mono text-sm font-semibold text-slate-900 dark:text-slate-50" title={payment.trxId}>
+                {payment.trxId}
+              </span>
+            </li>
+          ) : null}
+        </ul>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function SessionPaymentFields({ entries }: { entries: [string, unknown][] }) {
+  const snapshotEntries: { key: string; payment: SessionPendingPayment }[] = [];
+  const scalarEntries: [string, unknown][] = [];
+
+  for (const [key, val] of entries) {
+    const snap =
+      (isPaymentSnapshotKey(key) ? parsePaymentSnapshotValue(val) : null) ??
+      (typeof val === "object" && val !== null && !Array.isArray(val) ? parsePaymentSnapshotValue(val) : null);
+    if (snap) {
+      snapshotEntries.push({ key, payment: snap });
+      continue;
+    }
+    scalarEntries.push([key, val]);
+  }
+
+  return (
+    <div className="space-y-3 p-4">
+      {snapshotEntries.map(({ key, payment }) => (
+        <PaymentSnapshotDisplay key={key} title={humanizeFieldLabel(key)} payment={payment} />
+      ))}
+      {scalarEntries.length ? (
+        <dl className="grid gap-2 sm:grid-cols-2">
+          {scalarEntries.map(([key, val]) => (
+            <div
+              key={key}
+              className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700/80 dark:bg-slate-800/40"
+            >
+              <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                {humanizeFieldLabel(key)}
+              </dt>
+              <dd className="mt-1 wrap-break-word text-sm font-medium leading-relaxed text-slate-900 dark:text-slate-100">
+                {flattenForDisplay(val)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
+function PaymentDetailsPanel({ data, title }: { data: Record<string, unknown>; title?: string }) {
+  const safe = sanitizeForDisplay(data);
+  const wholeSnapshot = parsePaymentSnapshotValue(safe);
+  if (wholeSnapshot && Object.keys(safe).length <= 8) {
+    return <PaymentSnapshotDisplay title={title ?? "Payment details"} payment={wholeSnapshot} />;
+  }
+
+  const entries = Object.entries(safe).filter(([k]) => !k.startsWith("_"));
+  const snapshots = entries
+    .map(([key, val]) => {
+      const payment = (isPaymentSnapshotKey(key) ? parsePaymentSnapshotValue(val) : null) ?? parsePaymentSnapshotValue(val);
+      return payment ? { key, payment } : null;
+    })
+    .filter((x): x is { key: string; payment: SessionPendingPayment } => Boolean(x));
+
+  const snapshotKeys = new Set(snapshots.map((s) => s.key));
+  const rest = Object.fromEntries(entries.filter(([key]) => !snapshotKeys.has(key)));
+
+  if (!snapshots.length && !Object.keys(rest).length) return null;
+
+  return (
+    <div className="space-y-4">
+      {title ? (
+        <h4 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{title}</h4>
+      ) : null}
+      {snapshots.map(({ key, payment }) => (
+        <PaymentSnapshotDisplay key={key} title={humanizeFieldLabel(key)} payment={payment} />
+      ))}
+      {Object.keys(rest).length ? <KeyValueGrid data={rest} /> : null}
+    </div>
+  );
+}
+
 function KeyValueGrid({ data, title }: { data: Record<string, unknown>; title?: string }) {
   const entries = Object.entries(data).filter(([k]) => !k.startsWith("_"));
   if (!entries.length) return null;
+
+  const hasPaymentObject = entries.some(
+    ([key, val]) => (isPaymentSnapshotKey(key) || typeof val === "object") && parsePaymentSnapshotValue(val)
+  );
+  if (hasPaymentObject) {
+    return <PaymentDetailsPanel data={data} title={title} />;
+  }
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
       {title ? (
@@ -685,7 +1198,7 @@ const SESSION_GROUP_META: Record<
   pricing: { title: "Pricing", description: "Fees and amounts on file.", order: 2 },
   topic: { title: "Topic & notes", description: "What the session is about.", order: 3 },
   people: { title: "People & contact", description: "Who is involved (no internal IDs).", order: 4 },
-  payment: { title: "Payment snapshot", description: "Billing-related fields still on the session record.", order: 5 },
+  payment: { title: "Payment snapshot", description: "Student payment proof attached to this session.", order: 5 },
   meta: { title: "Timestamps & system", description: "Audit and technical metadata.", order: 6 },
   other: { title: "Additional fields", description: "Everything else returned by the API.", order: 7 },
 };
@@ -785,32 +1298,45 @@ function SessionDetailOverview({ detail }: { detail: Record<string, unknown> }) 
                 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-50">{meta.title}</h3>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{meta.description}</p>
               </header>
-              <dl className="grid gap-2 p-4 sm:grid-cols-2">
-                {entries.map(([key, val]) => (
-                  <div
-                    key={key}
-                    className={cn(
-                      "rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700/80 dark:bg-slate-800/40",
-                      key.toLowerCase().includes("description") || key.toLowerCase().includes("notes") || key.toLowerCase().includes("problem")
-                        ? "sm:col-span-2"
-                        : ""
-                    )}
-                  >
-                    <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      {humanizeFieldLabel(key)}
-                    </dt>
-                    <dd className="mt-1 wrap-break-word text-sm font-medium leading-relaxed text-slate-900 dark:text-slate-100">
-                      {flattenForDisplay(val)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              {id === "payment" ? (
+                <SessionPaymentFields entries={entries} />
+              ) : (
+                <dl className="grid gap-2 p-4 sm:grid-cols-2">
+                  {entries.map(([key, val]) => (
+                    <div
+                      key={key}
+                      className={cn(
+                        "rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700/80 dark:bg-slate-800/40",
+                        key.toLowerCase().includes("description") || key.toLowerCase().includes("notes") || key.toLowerCase().includes("problem")
+                          ? "sm:col-span-2"
+                          : ""
+                      )}
+                    >
+                      <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        {humanizeFieldLabel(key)}
+                      </dt>
+                      <dd className="mt-1 wrap-break-word text-sm font-medium leading-relaxed text-slate-900 dark:text-slate-100">
+                        {flattenForDisplay(val)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
             </section>
           );
         })}
       </div>
     </div>
   );
+}
+
+function formatPaymentMethodLabel(method: string | undefined) {
+  if (!method?.trim()) return "—";
+  const m = method.trim();
+  if (/^bkash$/i.test(m)) return "bKash";
+  if (/^nagad$/i.test(m)) return "Nagad";
+  if (/^rocket$/i.test(m)) return "Rocket";
+  return m.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function PaymentReviewActions({
@@ -820,7 +1346,6 @@ function PaymentReviewActions({
   onRejectReasonChange,
   onApprove,
   onReject,
-  compact,
 }: {
   payment: SessionPendingPayment;
   busy: boolean;
@@ -828,37 +1353,153 @@ function PaymentReviewActions({
   onRejectReasonChange: (value: string) => void;
   onApprove: () => void;
   onReject: () => void;
-  compact?: boolean;
 }) {
   return (
-    <div className={cn("rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/50 dark:bg-amber-950/30", compact && "p-3")}>
-      <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Payment review</p>
-      <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-200/90">
-        ৳{payment.amountBdt || "—"} · {payment.paymentMethod || "—"} · TrxID {payment.trxId || "—"}
-      </p>
-      {!compact ? (
-        <label className="mt-3 block text-sm">
-          <span className="font-medium text-slate-700 dark:text-slate-300">Rejection reason (optional)</span>
-          <input
+    <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md ring-1 ring-slate-900/5 dark:border-slate-700 dark:bg-slate-900 dark:ring-white/5">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-100/90 bg-linear-to-r from-amber-50 via-orange-50/40 to-white px-4 py-3.5 sm:px-5 dark:border-amber-900/30 dark:from-amber-950/50 dark:via-slate-900 dark:to-slate-900">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-200/90 bg-white shadow-sm dark:border-amber-800/60 dark:bg-amber-950/40">
+            <Banknote className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">Payment review</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Confirm the student&apos;s proof before releasing the session.</p>
+          </div>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/70 bg-amber-100/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900 dark:border-amber-700/80 dark:bg-amber-950/70 dark:text-amber-200">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" aria-hidden />
+          Pending
+        </span>
+      </header>
+
+      <div className="space-y-4 p-4 sm:p-5">
+        <dl className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/90 px-3.5 py-3 dark:border-slate-700/80 dark:bg-slate-800/50">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Amount</dt>
+            <dd className="mt-1.5 text-xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-slate-50">
+              ৳{payment.amountBdt || "—"}
+            </dd>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/90 px-3.5 py-3 dark:border-slate-700/80 dark:bg-slate-800/50">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Method</dt>
+            <dd className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-slate-50">
+              {formatPaymentMethodLabel(payment.paymentMethod)}
+            </dd>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/90 px-3.5 py-3 sm:col-span-1 dark:border-slate-700/80 dark:bg-slate-800/50">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Transaction ID</dt>
+            <dd className="mt-1.5 truncate font-mono text-sm font-semibold text-slate-900 dark:text-slate-50" title={payment.trxId || undefined}>
+              {payment.trxId || "—"}
+            </dd>
+          </div>
+        </dl>
+
+        {payment.payerNumber ? (
+          <p className="inline-flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
+            <Smartphone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            Payer number: <span className="font-mono font-medium text-slate-800 dark:text-slate-100">{payment.payerNumber}</span>
+          </p>
+        ) : null}
+
+        <label className="block">
+          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            Rejection reason <span className="font-normal normal-case text-slate-400">(optional)</span>
+          </span>
+          <textarea
             value={rejectReason}
             onChange={(e) => onRejectReasonChange(e.target.value)}
-            placeholder="Shown to student if rejected"
-            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm dark:border-slate-600 dark:bg-slate-900"
+            placeholder="Shown to the student if you reject this payment"
+            rows={2}
+            className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-sky-600"
           />
         </label>
-      ) : null}
-      <div className={cn("flex flex-wrap gap-2", compact ? "mt-3" : "mt-4")}>
-        <Button type="button" size="sm" disabled={busy} onClick={onApprove}>
-          <Check className="mr-1.5 h-4 w-4" />
-          Approve payment
-        </Button>
-        <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={onReject}>
-          <X className="mr-1.5 h-4 w-4" />
-          Reject payment
-        </Button>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end dark:border-slate-800">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={busy}
+            onClick={onReject}
+            className={cn(
+              "w-full border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-800 sm:w-auto dark:border-rose-900/50 dark:text-rose-300 dark:hover:bg-rose-950/40",
+              busy && "[&_svg]:animate-spin"
+            )}
+            iconLeft={busy ? Loader2 : X}
+          >
+            {busy ? "Processing…" : "Reject payment"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={busy}
+            onClick={onApprove}
+            className={cn(
+              "w-full bg-emerald-600 shadow-emerald-600/25 hover:bg-emerald-700 sm:w-auto",
+              busy && "[&_svg]:animate-spin"
+            )}
+            iconLeft={busy ? Loader2 : Check}
+          >
+            {busy ? "Processing…" : "Approve payment"}
+          </Button>
+        </div>
       </div>
-    </div>
+    </section>
   );
+}
+
+function SessionDetailModalHeader({
+  title,
+  status,
+  scheduleLine,
+}: {
+  title: string;
+  status: string | null;
+  scheduleLine: string | null;
+}) {
+  return (
+    <header className="relative shrink-0 overflow-hidden border-b border-slate-700/50 bg-linear-to-br from-slate-900 via-slate-800 to-sky-950 px-5 py-5 sm:px-6">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-sky-500/25 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute bottom-0 left-1/4 h-28 w-28 rounded-full bg-violet-500/15 blur-2xl" aria-hidden />
+      <div className="relative flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3.5 sm:gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white shadow-lg backdrop-blur-sm sm:h-12 sm:w-12">
+            <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-200/90">Session request</p>
+            <h3 className="mt-1 font-mono text-lg font-bold tracking-tight text-white sm:text-2xl">{title}</h3>
+            {scheduleLine ? (
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-300">
+                <CalendarClock className="h-4 w-4 shrink-0 text-sky-300/90" />
+                <span className="line-clamp-2">{scheduleLine}</span>
+              </p>
+            ) : null}
+          </div>
+        </div>
+        {status ? (
+          <span
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm",
+              badgeTone(status)
+            )}
+          >
+            {formatStatus(status)}
+          </span>
+        ) : null}
+      </div>
+    </header>
+  );
+}
+
+function sessionDetailScheduleLine(detail: Record<string, unknown>): string | null {
+  const row = toAdminSessionRow(detail);
+  const date = formatSessionScheduleDate(row);
+  const start = formatTime12(row.startTime);
+  const end = formatTime12(row.endTime);
+  if (!date && start === "—" && end === "—") return null;
+  const timePart = start !== "—" || end !== "—" ? `${start} – ${end}` : "";
+  return [date, timePart].filter(Boolean).join(" · ") || null;
 }
 
 function extractPaymentBlock(detail: Record<string, unknown>): Record<string, unknown> | null {
@@ -914,6 +1555,15 @@ function tabTriggerClass(active: boolean) {
     active
       ? "bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900"
       : "border border-transparent text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+  );
+}
+
+function sessionDetailTabClass(active: boolean) {
+  return cn(
+    "rounded-lg px-3 py-2 text-sm font-semibold transition sm:px-4 sm:py-2.5",
+    active
+      ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/90 dark:bg-slate-800 dark:text-slate-50 dark:ring-slate-600"
+      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
   );
 }
 
@@ -987,8 +1637,25 @@ function AdminSessionsTable({
             const pendingPayment = resolvePendingPaymentForSession(row.raw, row.id, pendingBySessionId);
             const paymentBusy = Boolean(pendingPayment && busyPaymentId === pendingPayment.id);
             return (
-            <tr key={row.id} className={SESSION_TABLE_ROW}>
-              <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{row.readableId}</td>
+            <tr
+              key={row.id}
+              className={cn(
+                SESSION_TABLE_ROW,
+                isSessionStartingWithinMinutes(row, URGENT_WINDOW_MINUTES) &&
+                  "bg-rose-50/40 ring-1 ring-inset ring-rose-200/60 dark:bg-rose-950/15 dark:ring-rose-900/40"
+              )}
+            >
+              <td className="px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{row.readableId}</span>
+                  {isSessionStartingWithinMinutes(row, URGENT_WINDOW_MINUTES) ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300">
+                      <AlertTriangle className="h-3 w-3" />
+                      Urgent
+                    </span>
+                  ) : null}
+                </div>
+              </td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatSessionScheduleDate(row)}</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                 {formatTime12(row.startTime)} – {formatTime12(row.endTime)}
@@ -1086,6 +1753,13 @@ export function AdminSessionRequestsPanel() {
   const [paymentRejectReason, setPaymentRejectReason] = useState("");
   const [pendingBySessionId, setPendingBySessionId] = useState<Map<string, PendingPayment>>(new Map());
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [sessionFilters, setSessionFilters] = useState<AdminSessionFilterState>({
+    search: "",
+    statusFilter: "all",
+    dayFilter: "all",
+    customDate: "",
+    urgentOnly: false,
+  });
 
   const dismissToast = useCallback((toastId: number) => {
     setToasts((current) => current.filter((item) => item.id !== toastId));
@@ -1191,16 +1865,29 @@ export function AdminSessionRequestsPanel() {
     [loadDetail]
   );
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const clampedPage = Math.min(page, totalPages);
-  const paged = useMemo(
-    () => rows.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE),
-    [rows, clampedPage]
+  const filteredRows = useMemo(
+    () => filterAdminSessionRows(rows, sessionFilters),
+    [rows, sessionFilters]
   );
 
-  const latestSessionsPreview = useMemo(() => {
-    return [...rows].sort((a, b) => parseRowSortTime(b) - parseRowSortTime(a)).slice(0, 3);
-  }, [rows]);
+  const filtersActive = hasActiveAdminSessionFilters(sessionFilters);
+
+  const handleSessionFiltersChange = useCallback((next: AdminSessionFilterState) => {
+    setSessionFilters(next);
+    setPage(1);
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE) || 1);
+  const clampedPage = Math.min(page, totalPages);
+  const paged = useMemo(
+    () => filteredRows.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE),
+    [filteredRows, clampedPage]
+  );
+
+  const latestSessionsDisplay = useMemo(() => {
+    const sorted = [...filteredRows].sort((a, b) => parseRowSortTime(b) - parseRowSortTime(a));
+    return filtersActive ? sorted : sorted.slice(0, 3);
+  }, [filteredRows, filtersActive]);
 
   const editForm = useFormik({
     enableReinitialize: true,
@@ -1371,13 +2058,23 @@ export function AdminSessionRequestsPanel() {
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Latest sessions</h3>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Three most recent sessions by schedule time (newest first).
+                  {filtersActive
+                    ? "Filtered sessions by schedule time (newest first)."
+                    : "Three most recent sessions by schedule time (newest first). Use filters to find urgent payments."}
                 </p>
               </div>
               <Button type="button" size="sm" variant="secondary" onClick={() => setMainTab("sessions")}>
                 View all
               </Button>
             </div>
+            {!loading && !error ? (
+              <AdminSessionFiltersBar
+                filters={sessionFilters}
+                onChange={handleSessionFiltersChange}
+                resultCount={latestSessionsDisplay.length}
+                totalCount={rows.length}
+              />
+            ) : null}
             {loading ? (
               <div className="flex items-center gap-2 px-5 py-10 text-sm text-slate-500">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -1387,8 +2084,8 @@ export function AdminSessionRequestsPanel() {
             {!loading && !error ? (
               <div className="pb-2 sm:px-1">
                 <AdminSessionsTable
-                  rows={latestSessionsPreview}
-                  emptyMessage="No sessions loaded yet."
+                  rows={latestSessionsDisplay}
+                  emptyMessage={filtersActive ? "No sessions match your filters." : "No sessions loaded yet."}
                   onView={(row) => openSessionDetail(row.id)}
                   onEdit={(row) => {
                     setActionMessage(null);
@@ -1409,8 +2106,18 @@ export function AdminSessionRequestsPanel() {
         <article className="flex max-h-[min(75vh,720px)] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All session requests</h3>
-          <span className="text-xs font-medium text-slate-500">{rows.length} loaded</span>
+          <span className="text-xs font-medium text-slate-500">
+            {filteredRows.length} shown · {rows.length} loaded
+          </span>
         </div>
+        {!loading && !error ? (
+          <AdminSessionFiltersBar
+            filters={sessionFilters}
+            onChange={handleSessionFiltersChange}
+            resultCount={filteredRows.length}
+            totalCount={rows.length}
+          />
+        ) : null}
         {loading ? (
           <div className="flex items-center gap-2 px-5 py-10 text-sm text-slate-500">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading sessions…
@@ -1422,7 +2129,7 @@ export function AdminSessionRequestsPanel() {
             <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
               <AdminSessionsTable
                 rows={paged}
-                emptyMessage="No sessions found."
+                emptyMessage={filtersActive ? "No sessions match your filters." : "No sessions found."}
                 onView={(row) => openSessionDetail(row.id)}
                 onEdit={(row) => {
                   setActionMessage(null);
@@ -1438,7 +2145,7 @@ export function AdminSessionRequestsPanel() {
               <Pagination
                 page={clampedPage}
                 totalPages={totalPages}
-                totalItems={rows.length}
+                totalItems={filteredRows.length}
                 pageSize={PAGE_SIZE}
                 onPageChange={(p) => setPage(p)}
               />
@@ -1448,35 +2155,46 @@ export function AdminSessionRequestsPanel() {
         </article>
       ) : null}
 
-      <Modal open={Boolean(detailId)} onClose={closeSessionView} className="max-w-4xl rounded-2xl">
-        <div className="max-h-[min(85vh,760px)] overflow-y-auto p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Session request</p>
-              <h3 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-50">{sessionTitle}</h3>
-            </div>
-            {detail && !detailLoading ? (
-              <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", badgeTone(String(detail.status ?? "")))}>
-                {formatStatus(String(detail.status ?? "unknown"))}
-              </span>
-            ) : null}
-          </div>
-
+      <Modal open={Boolean(detailId)} onClose={closeSessionView} className="max-w-4xl overflow-hidden rounded-2xl p-0">
+        <div className="flex max-h-[min(88vh,780px)] flex-col bg-slate-50/50 dark:bg-slate-950/30">
           {detailLoading ? (
-            <p className="mt-6 inline-flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading session…
-            </p>
+            <div className="border-b border-slate-200 bg-white px-5 py-5 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Session request</p>
+              <h3 className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-slate-50">{sessionTitle}</h3>
+            </div>
+          ) : detail ? (
+            <SessionDetailModalHeader
+              title={sessionTitle}
+              status={String(detail.status ?? "") || null}
+              scheduleLine={sessionDetailScheduleLine(detail)}
+            />
+          ) : (
+            <div className="border-b border-slate-200 bg-white px-5 py-5 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Session request</p>
+              <h3 className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-slate-50">{sessionTitle}</h3>
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+          {detailLoading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-slate-500">
+              <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
+              Loading session details…
+            </div>
           ) : null}
 
           {detailError ? (
-            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200">
-              <ShieldAlert className="h-4 w-4 shrink-0" />
-              {detailError}
+            <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-semibold">Could not load session</p>
+                <p className="mt-0.5 text-rose-700/90 dark:text-rose-200/90">{detailError}</p>
+              </div>
             </div>
           ) : null}
 
           {detail && !detailLoading ? (
-            <div className="mt-5 space-y-4">
+            <div className="space-y-5">
               {detailPendingPayment ? (
                 <PaymentReviewActions
                   payment={detailPendingPayment}
@@ -1490,25 +2208,30 @@ export function AdminSessionRequestsPanel() {
                 />
               ) : null}
 
-              <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-1 dark:border-slate-700">
-                <button type="button" className={tabTriggerClass(sessionTab === "overview")} onClick={() => setSessionTab("overview")}>
+              <nav
+                className="flex gap-1 rounded-xl border border-slate-200/90 bg-slate-100/90 p-1 dark:border-slate-700 dark:bg-slate-800/60"
+                aria-label="Session detail sections"
+              >
+                <button type="button" className={sessionDetailTabClass(sessionTab === "overview")} onClick={() => setSessionTab("overview")}>
                   Overview
                 </button>
-                <button type="button" className={tabTriggerClass(sessionTab === "payment")} onClick={() => setSessionTab("payment")}>
+                <button type="button" className={sessionDetailTabClass(sessionTab === "payment")} onClick={() => setSessionTab("payment")}>
                   Payment
                 </button>
-                <button type="button" className={tabTriggerClass(sessionTab === "mentors")} onClick={() => setSessionTab("mentors")}>
+                <button type="button" className={cn(sessionDetailTabClass(sessionTab === "mentors"), "inline-flex items-center gap-1.5")} onClick={() => setSessionTab("mentors")}>
                   Eligible mentors
-                  <span className="ml-1.5 tabular-nums opacity-80">({mentors.length})</span>
+                  <span className="rounded-md bg-slate-200/80 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                    {mentors.length}
+                  </span>
                 </button>
-              </div>
+              </nav>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900">
+              <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-900">
                 {sessionTab === "overview" ? <SessionDetailOverview detail={detail} /> : null}
                 {sessionTab === "payment" ? (
                   <div className="space-y-4">
                     {paymentBlock ? (
-                      <KeyValueGrid data={sanitizeForDisplay(paymentBlock)} title="Payment details" />
+                      <PaymentDetailsPanel data={sanitizeForDisplay(paymentBlock)} title="Payment details" />
                     ) : (
                       <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
                         No structured payment block on this session. Related amounts may still appear under Overview.
@@ -1573,6 +2296,7 @@ export function AdminSessionRequestsPanel() {
               </div>
             </div>
           ) : null}
+          </div>
         </div>
       </Modal>
 

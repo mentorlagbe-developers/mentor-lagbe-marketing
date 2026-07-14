@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Award, BookOpen, CalendarClock, CheckCircle2, Globe2, ListChecks, ShieldCheck, Star } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { bookCertificationExam, CertificationExamDetail, getCertificationExam } from "@/lib/certifications-api";
+import type { AuthUser } from "@/lib/mock-auth";
+import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import { LandingHeader } from "@/app/sections/landing/landing-header";
+import Footer from "@/app/components/ui/Footer";
 
 function formatBdt(value: string | number) {
   const amount = typeof value === "string" ? Number(value) : value;
@@ -25,6 +28,7 @@ function safeRating(value: unknown) {
 export default function CertificationDetailPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
+  const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
   const slug = String(params.slug ?? "");
 
   const [exam, setExam] = useState<CertificationExamDetail | null>(null);
@@ -56,12 +60,23 @@ export default function CertificationDetailPage() {
 
   async function handleBook() {
     if (!exam) return;
+    if (!user) {
+      router.push("/?auth=login");
+      return;
+    }
+    if (user.role !== "student") {
+      setBookingMessage("Only student accounts can book certification exams.");
+      return;
+    }
     setBookingMessage(null);
     try {
       const booking = await bookCertificationExam(exam.id);
-      setBookingMessage(
-        `Booking created (${booking.readableId}). Please complete payment from your dashboard Certifications section.`
-      );
+      const params = new URLSearchParams();
+      if (booking.id) params.set("bookingId", booking.id);
+      if (booking.readableId) params.set("readableId", booking.readableId);
+      if (booking.examId) params.set("examId", booking.examId);
+      params.set("fromBooking", "1");
+      router.push(`/dashboard/certifications?${params.toString()}`);
     } catch (e) {
       setBookingMessage(e instanceof ApiError ? e.message : "Could not create booking.");
     }
@@ -82,9 +97,9 @@ export default function CertificationDetailPage() {
   return (
     <main className="min-h-screen bg-slate-50/60 dark:bg-slate-950">
       <LandingHeader
-        user={null}
+        user={user}
         onAuthClick={() => router.push("/?auth=login")}
-        onDashboardClick={() => router.push("/dashboard/dashboard")}
+        onDashboardClick={() => router.push("/dashboard")}
         onContactClick={() => router.push("/#contact")}
       />
       <div className="border-b border-slate-200 bg-linear-to-br from-sky-50 via-white to-indigo-50/50 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950">
@@ -297,6 +312,7 @@ export default function CertificationDetailPage() {
           </div>
         </aside>
       </div>
+      <Footer />
     </main>
   );
 }

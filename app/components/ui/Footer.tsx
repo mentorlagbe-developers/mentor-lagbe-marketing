@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowUp, Mail, MapPin, Phone } from "lucide-react";
 import {
   FacebookIcon,
@@ -9,10 +12,12 @@ import {
   TwitterXIcon,
   YoutubeIcon,
 } from "@/app/components/ui/icons";
+import { ContactModal } from "@/app/components/ui/contact-modal";
+import { getAccessToken } from "@/lib/auth-store";
 
 const footerLinks = {
   quickLinks: [
-    { name: "About Us", href: "#" },
+    { name: "About Us", href: "/about" },
     { name: "All Courses", href: "#" },
     { name: "Live Batches", href: "#" },
     { name: "Find Teachers", href: "#" },
@@ -21,7 +26,7 @@ const footerLinks = {
     { name: "Career", href: "#" },
   ],
   support: [
-    { name: "Help Center", href: "#" },
+    { name: "Help Center", href: "/dashboard/help-center" },
     { name: "Student Support", href: "#" },
     { name: "Teacher Guidelines", href: "#" },
     { name: "Privacy Policy", href: "#" },
@@ -33,10 +38,19 @@ const footerLinks = {
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const [isContactOpen, setIsContactOpen] = useState(false);
 
   const handleBackToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  function handleHelpCenterClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (getAccessToken()) {
+      return;
+    }
+    event.preventDefault();
+    setIsContactOpen(true);
+  }
 
   return (
     <footer className="relative bg-black px-6 pb-7 pt-14 text-slate-400 md:px-12 md:pt-16 lg:px-24">
@@ -94,7 +108,13 @@ export default function Footer() {
           <ul className="space-y-4">
             {footerLinks.support.map((link) => (
               <li key={link.name}>
-                <Link href={link.href} className="hover:text-white transition-colors text-sm">{link.name}</Link>
+                <Link
+                  href={link.href}
+                  onClick={link.name === "Help Center" ? handleHelpCenterClick : undefined}
+                  className="hover:text-white transition-colors text-sm"
+                >
+                  {link.name}
+                </Link>
               </li>
             ))}
           </ul>
@@ -150,6 +170,7 @@ export default function Footer() {
           <Link href="#" className="hover:text-white transition-colors">Accessibility</Link>
         </div>
       </div>
+      <ContactModal open={isContactOpen} onClose={() => setIsContactOpen(false)} />
     </footer>
   );
 }

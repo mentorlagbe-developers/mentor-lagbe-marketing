@@ -44,8 +44,10 @@ type SessionRequest = {
   batch_number?: number;
   student_name?: string;
   student_gender?: string;
+  student_readable_id?: string;
   student?: {
     userId?: string;
+    readableId?: string;
     name?: string;
     gender?: string;
     university?: string;
@@ -88,6 +90,30 @@ function studentGender(s: SessionRequest): string {
   return s.student?.gender ?? s.student_gender ?? "";
 }
 
+function studentReadableId(s: SessionRequest): string {
+  return (
+    s.student?.readableId ??
+    s.student_readable_id ??
+    ""
+  ).trim();
+}
+
+function pickStudentField(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const direct = row[key];
+    if (typeof direct === "string" && direct.trim()) return direct.trim();
+  }
+  const nested = row.student ?? row.studentProfile ?? row.studentInfo;
+  if (nested && typeof nested === "object") {
+    const student = nested as Record<string, unknown>;
+    for (const key of keys) {
+      const value = student[key];
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  }
+  return "";
+}
+
 function statusTone(status = ""): "success" | "warning" | "danger" | "info" {
   const s = status.toLowerCase();
   if (s.includes("completed")) return "success";
@@ -108,16 +134,44 @@ function isPending(s: SessionRequest) {
 }
 
 function normalizeSessionRequest(row: SessionRequest): SessionRequest {
-  const fromRecord = calendarDateFromRecord(row as unknown as Record<string, unknown>);
+  const record = row as unknown as Record<string, unknown>;
+  const fromRecord = calendarDateFromRecord(record);
   const session_date =
     fromRecord ||
     calendarDateFromApiValue(row.session_date) ||
     calendarDateFromApiValue((row as { sessionDate?: string }).sessionDate);
-  const readable_id = sessionReadableIdFromRecord(row as unknown as Record<string, unknown>);
+  const readable_id = sessionReadableIdFromRecord(record);
+  const student_readable_id = pickStudentField(
+    record,
+    "student_readable_id",
+    "studentReadableId",
+    "readableId",
+    "readable_id",
+  );
+  const student_name = pickStudentField(record, "student_name", "studentName", "name", "fullName");
+  const student_gender = pickStudentField(record, "student_gender", "studentGender", "gender");
+  const nestedStudent = row.student;
   return {
     ...row,
     session_date,
     readable_id: readable_id !== "—" ? readable_id : row.readable_id,
+    student_readable_id: student_readable_id || row.student_readable_id,
+    student_name: student_name || row.student_name,
+    student_gender: student_gender || row.student_gender,
+    student: nestedStudent
+      ? {
+          ...nestedStudent,
+          name: nestedStudent.name ?? student_name,
+          readableId: nestedStudent.readableId ?? student_readable_id,
+          gender: nestedStudent.gender ?? student_gender,
+        }
+      : student_name || student_readable_id
+        ? {
+            name: student_name,
+            readableId: student_readable_id,
+            gender: student_gender,
+          }
+        : undefined,
   };
 }
 
@@ -174,7 +228,7 @@ function SessionModal({
 
   const sName = studentName(session);
   const sGender = studentGender(session);
-  const sId = session.student?.userId ?? "—";
+  const sReadableId = studentReadableId(session);
   const sUniversity = session.student?.university ?? "";
   const sSemester = session.student?.semester ?? "";
   const t = topic(session);
@@ -253,7 +307,9 @@ function SessionModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-white truncate">{sName}</p>
-                  <p className="text-xs text-sky-100 truncate">{sId}</p>
+                  {sReadableId ? (
+                    <p className="mt-0.5 truncate font-mono text-xs text-sky-100">ID: {sReadableId}</p>
+                  ) : null}
                 </div>
                 <GenderBadge gender={sGender} />
               </div>
@@ -536,11 +592,16 @@ export function MentorSessionRequests() {
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-slate-800 dark:text-slate-200">{studentName(s)}</p>
-                        {studentGender(s) && (
+                        {studentReadableId(s) ? (
+                          <p className="mt-0.5 font-mono text-xs text-slate-500 dark:text-slate-400">
+                            {studentReadableId(s)}
+                          </p>
+                        ) : null}
+                        {studentGender(s) ? (
                           <span className="mt-0.5 block">
                             <GenderBadge gender={studentGender(s)} />
                           </span>
-                        )}
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{topic(s)}</td>
                       <td className="px-4 py-3">

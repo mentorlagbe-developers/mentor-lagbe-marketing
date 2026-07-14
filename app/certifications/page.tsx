@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Filter, GraduationCap, Search, Sparkles } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import {
@@ -13,14 +14,18 @@ import {
   listCertificationExams,
   listCertificationVendors,
 } from "@/lib/certifications-api";
+import type { AuthUser } from "@/lib/mock-auth";
+import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import { CertificationExamCardView } from "@/app/certifications/_components/certification-exam-card";
 import { LandingHeader } from "@/app/sections/landing/landing-header";
+import Footer from "@/app/components/ui/Footer";
 
 type PriceFilter = "all" | "under_5k" | "between_5k_10k" | "above_10k";
 type SortFilter = "newly_published" | "featured_first" | "price_low_to_high" | "price_high_to_low";
 
 export default function CertificationsCatalogPage() {
   const router = useRouter();
+  const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
   const [items, setItems] = useState<CertificationExamCard[]>([]);
   const [selectedVendor, setSelectedVendor] = useState("all"); // vendor slug
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -116,15 +121,27 @@ export default function CertificationsCatalogPage() {
   return (
     <main className="min-h-screen bg-slate-50/60 dark:bg-slate-950">
       <LandingHeader
-        user={null}
+        user={user}
         onAuthClick={() => router.push("/?auth=login")}
-        onDashboardClick={() => router.push("/dashboard/dashboard")}
+        onDashboardClick={() => router.push("/dashboard")}
         onContactClick={() => router.push("/#contact")}
       />
-      <section className="border-b border-slate-200 bg-linear-to-br from-sky-50 via-white to-indigo-50/50 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950">
+      <motion.section
+        initial={{ opacity: 0, y: 18 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.55, ease: "easeOut" }}
+        className="border-b border-slate-200 bg-linear-to-br from-sky-50 via-white to-indigo-50/50 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950"
+      >
         <div className="mx-auto max-w-352 px-3 py-7 sm:px-4 lg:px-6">
           <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="max-w-2xl space-y-4">
+            <motion.div
+              initial={{ opacity: 0, x: -18 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}
+              className="max-w-2xl space-y-4"
+            >
               <p className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-sky-700 dark:border-sky-800 dark:bg-slate-900/60 dark:text-sky-300">
                 <Sparkles className="h-3.5 w-3.5" />
                 Certification Marketplace
@@ -154,9 +171,15 @@ export default function CertificationsCatalogPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
 
-            <div className="relative mx-auto w-full max-w-xl">
+            <motion.div
+              initial={{ opacity: 0, x: 18, scale: 0.98 }}
+              whileInView={{ opacity: 1, x: 0, scale: 1 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+              className="relative mx-auto w-full max-w-xl"
+            >
               <div className="absolute -left-8 -top-8 h-28 w-28 rounded-full bg-sky-200/55 blur-2xl dark:bg-sky-900/35" />
               <div className="absolute -bottom-6 -right-6 h-28 w-28 rounded-full bg-indigo-200/45 blur-2xl dark:bg-indigo-900/35" />
               <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
@@ -178,13 +201,19 @@ export default function CertificationsCatalogPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       <section className="mx-auto max-w-352 px-3 py-6 sm:px-4 lg:px-6">
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.25 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          className="mb-4 flex items-center justify-between gap-3"
+        >
           <div className="relative w-full max-w-lg">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -201,12 +230,18 @@ export default function CertificationsCatalogPage() {
             <GraduationCap className="h-4 w-4 text-slate-400" />
             <span>{total} total results</span>
           </div>
-        </div>
+        </motion.div>
 
         {error ? <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300">{error}</p> : null}
 
         <div className="grid gap-5 lg:grid-cols-[290px_minmax(0,1fr)]">
-          <aside className="h-fit rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm ring-1 ring-slate-100 lg:sticky lg:top-20 dark:border-slate-700 dark:bg-slate-900 dark:ring-slate-800">
+          <motion.aside
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="h-fit rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm ring-1 ring-slate-100 lg:sticky lg:top-20 dark:border-slate-700 dark:bg-slate-900 dark:ring-slate-800"
+          >
             <div className="mb-4 flex items-center gap-2">
               <Filter className="h-4 w-4 text-slate-500" />
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filter certifications</h2>
@@ -373,7 +408,7 @@ export default function CertificationsCatalogPage() {
                 Reset filters
               </button>
             </div>
-          </aside>
+          </motion.aside>
 
           <section>
             {loading ? (
@@ -386,11 +421,29 @@ export default function CertificationsCatalogPage() {
                 ))}
               </div>
             ) : items.length ? (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.15 }}
+                variants={{
+                  hidden: {},
+                  visible: { transition: { staggerChildren: 0.06 } },
+                }}
+                className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+              >
                 {items.map((exam) => (
-                  <CertificationExamCardView key={exam.id} exam={exam} />
+                  <motion.div
+                    key={exam.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 18 },
+                      visible: { opacity: 1, y: 0 },
+                    }}
+                    transition={{ duration: 0.45, ease: "easeOut" }}
+                  >
+                    <CertificationExamCardView exam={exam} />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
                 <p className="text-base font-semibold text-slate-800 dark:text-slate-200">No certification found</p>
@@ -426,6 +479,7 @@ export default function CertificationsCatalogPage() {
           </section>
         </div>
       </section>
+      <Footer />
     </main>
   );
 }

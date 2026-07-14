@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Clock3 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
+import { SearchableSelect } from "@/app/components/ui/searchable-select";
 import { useProfileStatus } from "@/app/dashboard/_components/profile-status-context";
 import { ApiError, apiFetch } from "@/lib/api";
 
@@ -366,9 +367,30 @@ export function LiveSessionBookingFlow() {
 
       {needsCompletionForLiveSession ? null : (
         <>
-      <Button variant="secondary" iconLeft={ArrowLeft} onClick={backToOverview}>
-        Back to Live Session Page
-      </Button>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          iconLeft={ArrowLeft}
+          onClick={backToOverview}
+          className="h-9 w-fit shrink-0 border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-800 shadow-sm hover:border-sky-300 hover:bg-sky-100 hover:text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200 dark:hover:bg-sky-900/50"
+        >
+          Back to Live Session Page
+        </Button>
+
+        {step === 1 ? (
+          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-sky-200 bg-linear-to-r from-sky-50 via-sky-50/90 to-cyan-50 px-3.5 py-2.5 shadow-sm ring-1 ring-sky-100/80 dark:border-sky-800/60 dark:from-sky-950/50 dark:via-sky-950/40 dark:to-cyan-950/30 dark:ring-sky-900/40">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white shadow-sm dark:bg-sky-500">
+              <Info className="h-3.5 w-3.5" />
+            </span>
+            <p className="text-sm leading-snug text-sky-950 dark:text-sky-100">
+              <span className="font-semibold">Please note:</span> If your topic is not listed, select{" "}
+              <span className="font-semibold text-sky-800 dark:text-sky-200">Other</span> from the Topic dropdown,
+              then enter your topic name in the input field that appears below.
+            </p>
+          </div>
+        ) : null}
+      </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-4 flex items-center justify-between">
@@ -380,92 +402,77 @@ export function LiveSessionBookingFlow() {
 
         {step === 1 ? (
           <div className="grid gap-4 md:grid-cols-3">
-            <label className="space-y-1.5 text-sm md:col-span-1">
+            <div className="space-y-1.5 text-sm md:col-span-1">
               <span className="font-medium text-slate-700 dark:text-slate-200">Department</span>
-              <select
+              <SearchableSelect
                 value={form.departmentId}
-                onChange={(event) =>
+                options={departments}
+                disabled={isLoadingDepartments}
+                placeholder={isLoadingDepartments ? "Loading departments..." : "Select department"}
+                searchPlaceholder="Search departments…"
+                onChange={(departmentId) =>
                   setForm((current) => ({
                     ...current,
-                    departmentId: event.target.value,
+                    departmentId,
                     courseId: "",
                     topicId: "",
                     customTopic: "",
                   }))
                 }
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base outline-none focus:border-brand-primary dark:border-slate-700 dark:bg-slate-800"
-              >
-                <option value="">{isLoadingDepartments ? "Loading departments..." : "Select department"}</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.label}
-                  </option>
-                ))}
-              </select>
+              />
               {errors.departmentId ? <p className="text-xs text-rose-500">{errors.departmentId}</p> : null}
-            </label>
+            </div>
 
-            <label className="space-y-1.5 text-sm md:col-span-1">
+            <div className="space-y-1.5 text-sm md:col-span-1">
               <span className="font-medium text-slate-700 dark:text-slate-200">Course</span>
-              <select
+              <SearchableSelect
                 value={form.courseId}
+                options={courses}
                 disabled={!form.departmentId || isLoadingCourses}
-                onChange={(event) =>
+                placeholder={
+                  !form.departmentId
+                    ? "Select department first"
+                    : isLoadingCourses
+                      ? "Loading courses..."
+                      : "Select course"
+                }
+                searchPlaceholder="Search courses…"
+                onChange={(courseId) =>
                   setForm((current) => ({
                     ...current,
-                    courseId: event.target.value,
+                    courseId,
                     topicId: "",
                     customTopic: "",
                   }))
                 }
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base outline-none focus:border-brand-primary dark:border-slate-700 dark:bg-slate-800"
-              >
-                <option value="">
-                  {!form.departmentId
-                    ? "Select department first"
-                    : isLoadingCourses
-                      ? "Loading courses..."
-                      : "Select course"}
-                </option>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.label}
-                  </option>
-                ))}
-              </select>
+              />
               {errors.courseId ? <p className="text-xs text-rose-500">{errors.courseId}</p> : null}
-            </label>
+            </div>
 
-            <label className="space-y-1.5 text-sm md:col-span-1">
+            <div className="space-y-1.5 text-sm md:col-span-1">
               <span className="font-medium text-slate-700 dark:text-slate-200">Topic</span>
-              <select
+              <SearchableSelect
                 value={form.topicId}
+                options={[...topics, { id: TOPIC_OTHER_VALUE, label: "Other" }]}
                 disabled={!form.courseId || isLoadingTopics}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    topicId: event.target.value,
-                    customTopic: event.target.value === TOPIC_OTHER_VALUE ? current.customTopic : "",
-                  }))
-                }
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base outline-none focus:border-brand-primary dark:border-slate-700 dark:bg-slate-800"
-              >
-                <option value="">
-                  {!form.courseId
+                placeholder={
+                  !form.courseId
                     ? "Select course first"
                     : isLoadingTopics
                       ? "Loading topics..."
-                      : "Select topic"}
-                </option>
-                {topics.map((topic) => (
-                  <option key={topic.id} value={topic.id}>
-                    {topic.label}
-                  </option>
-                ))}
-                <option value={TOPIC_OTHER_VALUE}>Other</option>
-              </select>
+                      : "Select topic"
+                }
+                searchPlaceholder="Search topics…"
+                onChange={(topicId) =>
+                  setForm((current) => ({
+                    ...current,
+                    topicId,
+                    customTopic: topicId === TOPIC_OTHER_VALUE ? current.customTopic : "",
+                  }))
+                }
+              />
               {errors.topicId ? <p className="text-xs text-rose-500">{errors.topicId}</p> : null}
-            </label>
+            </div>
 
             {form.topicId === TOPIC_OTHER_VALUE ? (
               <label className="space-y-1.5 text-sm md:col-span-2">

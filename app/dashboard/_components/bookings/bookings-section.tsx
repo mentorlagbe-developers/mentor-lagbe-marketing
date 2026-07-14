@@ -533,12 +533,6 @@ export function BookingsSection() {
               }}
             />
           ) : null}
-          <div className="mt-6 flex justify-end">
-            <Button variant="secondary" onClick={() => {
-              setSelected(null);
-              setDetailsError(null);
-            }}>Close</Button>
-          </div>
         </div>
       </Modal>
     </section>

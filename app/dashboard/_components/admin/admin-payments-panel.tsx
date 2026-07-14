@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
+import { AdminCertificationPaymentsPanel } from "@/app/dashboard/_components/admin/admin-certification-payments-panel";
 import { apiFetch, ApiError } from "@/lib/api";
 import { Button } from "@/app/components/ui/button";
 import { Pagination } from "@/app/components/ui/pagination";
@@ -18,6 +19,8 @@ type PendingPayment = {
   studentName?: string;
   createdAt?: string;
 };
+
+type PaymentsTab = "sessions" | "certifications";
 
 const PAGE_SIZE = 10;
 
@@ -42,7 +45,16 @@ function parsePendingList(raw: unknown): PendingPayment[] {
     .filter((p) => p.id);
 }
 
-export function AdminPaymentsPanel() {
+function tabClass(active: boolean) {
+  return cn(
+    "rounded-xl px-4 py-2.5 text-sm font-semibold transition",
+    active
+      ? "bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900"
+      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+  );
+}
+
+function LiveSessionPaymentsSection() {
   const [payments, setPayments] = useState<PendingPayment[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,10 +66,9 @@ export function AdminPaymentsPanel() {
     setIsLoading(true);
     setError(null);
     try {
-      const raw = await apiFetch<unknown>(
-        `/admin/payments/pending?page=${page}&limit=${PAGE_SIZE}`,
-        { auth: true }
-      );
+      const raw = await apiFetch<unknown>(`/admin/payments/pending?page=${page}&limit=${PAGE_SIZE}`, {
+        auth: true,
+      });
       setPayments(parsePendingList(raw));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load pending payments.");
@@ -109,12 +120,9 @@ export function AdminPaymentsPanel() {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Pending payments</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Approve or reject student session payments. Students are notified via in-app and WhatsApp.
-          </p>
-        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Approve or reject student live session payments. Students are notified via in-app and WhatsApp.
+        </p>
         <Button variant="secondary" size="sm" onClick={() => void load()}>
           Refresh
         </Button>
@@ -150,9 +158,7 @@ export function AdminPaymentsPanel() {
                       type="text"
                       placeholder="Rejection reason (optional)"
                       value={rejectReason[p.id] ?? ""}
-                      onChange={(e) =>
-                        setRejectReason((prev) => ({ ...prev, [p.id]: e.target.value }))
-                      }
+                      onChange={(e) => setRejectReason((prev) => ({ ...prev, [p.id]: e.target.value }))}
                       className="h-8 w-full max-w-xs rounded-lg border border-slate-200 px-2 text-xs dark:border-slate-600 dark:bg-slate-900"
                     />
                     <div className="flex gap-1">
@@ -160,9 +166,7 @@ export function AdminPaymentsPanel() {
                         type="button"
                         disabled={busyId === p.id}
                         onClick={() => void approve(p.id)}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
-                        )}
+                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
                       >
                         <Check className="h-3.5 w-3.5" />
                         Approve
@@ -184,7 +188,7 @@ export function AdminPaymentsPanel() {
             {!payments.length && !isLoading ? (
               <tr>
                 <td colSpan={5} className="px-3 py-8 text-center text-slate-500">
-                  No pending payments.
+                  No pending live session payments.
                 </td>
               </tr>
             ) : null}
@@ -195,6 +199,33 @@ export function AdminPaymentsPanel() {
       {payments.length > PAGE_SIZE ? (
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       ) : null}
+    </section>
+  );
+}
+
+export function AdminPaymentsPanel() {
+  const [tab, setTab] = useState<PaymentsTab>("certifications");
+
+  return (
+    <section className="space-y-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Super admin</p>
+        <h2 className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-50">Payments</h2>
+        <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+          Review and approve student payments for live sessions and certification exams.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-1 dark:border-slate-700">
+        <button type="button" className={tabClass(tab === "certifications")} onClick={() => setTab("certifications")}>
+          Certification exams
+        </button>
+        <button type="button" className={tabClass(tab === "sessions")} onClick={() => setTab("sessions")}>
+          Live sessions
+        </button>
+      </div>
+
+      {tab === "certifications" ? <AdminCertificationPaymentsPanel /> : <LiveSessionPaymentsSection />}
     </section>
   );
 }

@@ -11,9 +11,11 @@ import { StudentDashboardOverview } from "@/app/dashboard/_components/student/st
 import { MentorDashboardOverview } from "@/app/dashboard/_components/mentor/mentor-dashboard-overview";
 import { MentorSessionRequests } from "@/app/dashboard/_components/mentor/mentor-session-requests";
 import { MentorLiveSessionsPanel } from "@/app/dashboard/_components/mentor/mentor-live-sessions-panel";
+import { MentorStudentsSection } from "@/app/dashboard/_components/mentor/mentor-students-section";
 import { PaymentsSection } from "@/app/dashboard/_components/payments/payments-section";
 import { CertificationsSection } from "@/app/dashboard/_components/certifications/certifications-section";
 import { HelpCenterSection } from "@/app/dashboard/_components/help-center/help-center-section";
+import { PrivacyPoliciesSection } from "@/app/dashboard/_components/privacy-policies/privacy-policies-section";
 import { AdminPaymentsPanel } from "@/app/dashboard/_components/admin/admin-payments-panel";
 import type { UserRole } from "@/lib/mock-auth";
 
@@ -37,6 +39,10 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
 
   if (role === "teacher" && section === "mentor-live-sessions") {
     return <MentorLiveSessionsPanel />;
+  }
+
+  if (role === "teacher" && section === "my-students") {
+    return <MentorStudentsSection />;
   }
 
   if (section === "live-session") {
@@ -69,6 +75,10 @@ export function DashboardSectionContent({ section, role }: DashboardSectionConte
 
   if (section === "help-center") {
     return <HelpCenterSection role={role} />;
+  }
+
+  if (section === "privacy-policies" && (role === "student" || role === "teacher")) {
+    return <PrivacyPoliciesSection role={role} />;
   }
 
   if (role === "superadmin" && section === "admin-session-requests") {
