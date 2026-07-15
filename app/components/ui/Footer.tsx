@@ -13,6 +13,11 @@ import {
   YoutubeIcon,
 } from "@/app/components/ui/icons";
 import { ContactModal } from "@/app/components/ui/contact-modal";
+import {
+  FOOTER_BOTTOM_POLICY_LINKS,
+  FOOTER_SUPPORT_POLICY_LINKS,
+  policyPath,
+} from "@/data/policies";
 import { getAccessToken } from "@/lib/auth-store";
 
 const footerLinks = {
@@ -26,13 +31,12 @@ const footerLinks = {
     { name: "Career", href: "#" },
   ],
   support: [
-    { name: "Help Center", href: "/dashboard/help-center" },
-    { name: "Student Support", href: "#" },
-    { name: "Teacher Guidelines", href: "#" },
-    { name: "Privacy Policy", href: "#" },
-    { name: "Terms of Service", href: "#" },
-    { name: "Refund Policy", href: "#" },
-    { name: "Community Guidelines", href: "#" },
+    { name: "Help Center", href: "/dashboard/help-center", kind: "help-center" as const },
+    ...FOOTER_SUPPORT_POLICY_LINKS.map((item) => ({
+      name: item.label,
+      href: policyPath(item.slug),
+      kind: "policy" as const,
+    })),
   ],
 };
 
@@ -110,7 +114,7 @@ export default function Footer() {
               <li key={link.name}>
                 <Link
                   href={link.href}
-                  onClick={link.name === "Help Center" ? handleHelpCenterClick : undefined}
+                  onClick={link.kind === "help-center" ? handleHelpCenterClick : undefined}
                   className="hover:text-white transition-colors text-sm"
                 >
                   {link.name}
@@ -164,10 +168,11 @@ export default function Footer() {
       <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-900 pt-5 text-xs md:flex-row">
         <p>© {currentYear} Mentor Lagbe. All rights reserved.</p>
         <div className="flex gap-6">
-          <Link href="#" className="hover:text-white transition-colors">Privacy</Link>
-          <Link href="#" className="hover:text-white transition-colors">Terms</Link>
-          <Link href="#" className="hover:text-white transition-colors">Cookies</Link>
-          <Link href="#" className="hover:text-white transition-colors">Accessibility</Link>
+          {FOOTER_BOTTOM_POLICY_LINKS.map((link) => (
+            <Link key={link.slug} href={policyPath(link.slug)} className="hover:text-white transition-colors">
+              {link.label}
+            </Link>
+          ))}
         </div>
       </div>
       <ContactModal open={isContactOpen} onClose={() => setIsContactOpen(false)} />

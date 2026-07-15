@@ -23,10 +23,17 @@ export type MentorSession = {
 };
 
 function str(v: unknown, fallback = ""): string {
-  return typeof v === "string" ? v : fallback;
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  return fallback;
 }
 function num(v: unknown, fallback = 0): number {
-  return typeof v === "number" ? v : fallback;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
 }
 
 export function getSessionReadableId(item: Record<string, unknown>): string {
@@ -51,7 +58,7 @@ function getStudentField(item: Record<string, unknown>, ...keys: string[]): stri
 }
 
 function getTopicName(item: Record<string, unknown>): string {
-  for (const key of ["topicName", "topicTitle", "subjectName", "courseName", "courseTitle"]) {
+  for (const key of ["topicName", "topic_name", "topicTitle", "subjectName"]) {
     const v = str(item[key]);
     if (v) return v;
   }
@@ -59,6 +66,34 @@ function getTopicName(item: Record<string, unknown>): string {
     const t = item.topic as Record<string, unknown>;
     for (const key of ["name", "title", "label"]) {
       const v = str(t[key]);
+      if (v) return v;
+    }
+  }
+  return "";
+}
+
+function getCustomTopicName(item: Record<string, unknown>): string {
+  for (const key of ["customTopicName", "custom_topic_name"]) {
+    const v = str(item[key]);
+    if (v) return v;
+  }
+  return "";
+}
+
+export function sessionTopicLabel(session: Pick<MentorSession, "customTopicName" | "topicName">): string {
+  return session.customTopicName?.trim() || session.topicName?.trim() || "—";
+}
+
+function getStudentReadableId(item: Record<string, unknown>): string {
+  for (const key of ["studentReadableId", "student_readable_id"]) {
+    const v = str(item[key]);
+    if (v) return v;
+  }
+  const nested = item.student ?? item.studentProfile ?? item.studentInfo;
+  if (nested && typeof nested === "object") {
+    const sr = nested as Record<string, unknown>;
+    for (const key of ["studentReadableId", "student_readable_id", "readableId", "readable_id"]) {
+      const v = str(sr[key]);
       if (v) return v;
     }
   }
@@ -81,17 +116,12 @@ export function normalizeSession(item: Record<string, unknown>): MentorSession {
     durationMinutes: num(item.durationMinutes),
     priceBdt: str(item.priceBdt) || str(item.price_bdt, "0"),
     topicName: getTopicName(item),
-    customTopicName: str(item.customTopicName),
-    studentId: getStudentField(item, "studentId", "userId"),
-    studentName: getStudentField(item, "studentName", "fullName", "name"),
-    studentGender: getStudentField(item, "studentGender", "gender"),
-    studentReadableId: getStudentField(
-      item,
-      "studentReadableId",
-      "student_readable_id",
-      "readableId",
-    ),
-    createdAt: str(item.createdAt),
+    customTopicName: getCustomTopicName(item),
+    studentId: getStudentField(item, "studentId", "student_id", "userId"),
+    studentName: getStudentField(item, "studentName", "student_name", "fullName", "name"),
+    studentGender: getStudentField(item, "studentGender", "student_gender", "gender"),
+    studentReadableId: getStudentReadableId(item),
+    createdAt: str(item.createdAt) || str(item.created_at),
   };
 }
 
@@ -192,7 +222,7 @@ export function matchesMentorHistoryFilter(status: string, filter: MentorHistory
 
 export function statusTone(status: string): "success" | "warning" | "danger" | "info" {
   const s = status.toLowerCase();
-  if (s.includes("completed") || s.includes("accepted") || s.includes("confirmed")) return "success";
+  if (s.includes("completed") || s.includes("accepted") || s.includes("confirmed") || s.includes("approved")) return "success";
   if (s.includes("pending") || s.includes("waiting")) return "warning";
   if (s.includes("cancel") || s.includes("declined") || s.includes("expired") || s.includes("failed")) return "danger";
   return "info";

@@ -12,9 +12,10 @@ type AboutHeroSectionProps = {
     primaryCta: { label: string; href: string };
     secondaryCta: { label: string; href: string };
   };
+  onPrimaryCtaClick?: () => void;
 };
 
-export function AboutHeroSection({ data }: AboutHeroSectionProps) {
+export function AboutHeroSection({ data, onPrimaryCtaClick }: AboutHeroSectionProps) {
   const gradientPhrase = "Ambition and Expertise";
   const leadTitle = data.title.replace(gradientPhrase, "").trim();
 
@@ -44,12 +45,22 @@ export function AboutHeroSection({ data }: AboutHeroSectionProps) {
             {data.description}
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href={data.primaryCta.href}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
-            >
-              {data.primaryCta.label}
-            </Link>
+            {onPrimaryCtaClick ? (
+              <button
+                type="button"
+                onClick={onPrimaryCtaClick}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
+              >
+                {data.primaryCta.label}
+              </button>
+            ) : (
+              <Link
+                href={data.primaryCta.href}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
+              >
+                {data.primaryCta.label}
+              </Link>
+            )}
             <Link
               href={data.secondaryCta.href}
               className="inline-flex items-center gap-2 rounded-xl border border-sky-300 bg-white px-5 py-3 text-sm font-semibold text-sky-700 shadow-[0_0_0_rgba(56,189,248,0)] transition hover:shadow-[0_0_24px_rgba(56,189,248,0.35)] dark:border-sky-700 dark:bg-slate-900 dark:text-sky-300"

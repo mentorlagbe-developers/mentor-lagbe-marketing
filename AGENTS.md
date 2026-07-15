@@ -38,6 +38,13 @@
 | Booking detail UI | [`app/dashboard/_components/bookings/booking-detail-panel.tsx`](app/dashboard/_components/bookings/booking-detail-panel.tsx) |
 | Live session payment block | [`live-session-overview.tsx`](app/dashboard/_components/live-session/live-session-overview.tsx) |
 | Admin payments | [`admin-payments-panel.tsx`](app/dashboard/_components/admin/admin-payments-panel.tsx) |
+| Jitsi meet room | [`video_conferancing/`](video_conferancing/) · `/dashboard/meet/[sessionId]` |
+
+## Jitsi (meet page)
+
+- Public `meet.jit.si`: mentor joins first (`POST .../jitsi-presence`); student polls `GET .../jitsi-presence` before embed.
+- On hangup: iframe unmounts → [`SessionEndedPanel`](video_conferancing/SessionEndedPanel.tsx) (no 8x8 promo).
+- Config: [`jitsi-config.ts`](video_conferancing/jitsi-config.ts) — lobby off, camera off, `enableClosePage: false`.
 
 ## Dashboard routes (student)
 

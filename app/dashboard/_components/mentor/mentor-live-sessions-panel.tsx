@@ -15,6 +15,7 @@ import {
   formatTime,
   isUpcomingLiveSession,
   matchesMentorHistoryFilter,
+  sessionTopicLabel,
   type MentorHistoryFilter,
   type MentorSession,
   statusTone,
@@ -29,6 +30,8 @@ type MentorDashboardSummary = {
     start_time?: string;
     course_name?: string;
     custom_course_name?: string;
+    topic_name?: string;
+    custom_topic_name?: string;
     status?: string;
   } | null;
   nextSession?: {
@@ -38,6 +41,8 @@ type MentorDashboardSummary = {
     start_time?: string;
     course_name?: string;
     custom_course_name?: string;
+    topic_name?: string;
+    custom_topic_name?: string;
     status?: string;
     meet_link?: string;
     id?: string;
@@ -59,8 +64,8 @@ function friendlyDate(raw?: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function topicFromRow(row: { topicName?: string; customTopicName?: string }): string {
-  return row.customTopicName?.trim() || row.topicName?.trim() || "—";
+function topicFromRow(row: Pick<MentorSession, "customTopicName" | "topicName">): string {
+  return sessionTopicLabel(row);
 }
 
 function sessionCardLabel(
@@ -90,7 +95,7 @@ function SessionDetailModal({ session, onClose }: { session: MentorSession; onCl
         </div>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Student", value: session.studentName || "—" },
+            { label: "Student ID", value: session.studentReadableId || "—" },
             { label: "Topic", value: topic },
             { label: "Date", value: friendlyDate(session.sessionDate) },
             { label: "Time", value: time },
@@ -184,7 +189,7 @@ export function MentorLiveSessionsPanel() {
     if (summary?.nextSession) {
       return {
         label: sessionCardLabel(summary.nextSession),
-        trend: summary.nextSession.custom_course_name ?? summary.nextSession.course_name ?? "Next confirmed session",
+        trend: summary.nextSession.custom_topic_name ?? summary.nextSession.topic_name ?? "Next confirmed session",
       };
     }
     const first = upcomingFromList[0];
@@ -200,7 +205,7 @@ export function MentorLiveSessionsPanel() {
     if (summary?.lastSession) {
       return {
         label: sessionCardLabel(summary.lastSession),
-        trend: summary.lastSession.custom_course_name ?? summary.lastSession.course_name ?? "Most recent completed",
+        trend: summary.lastSession.custom_topic_name ?? summary.lastSession.topic_name ?? "Most recent completed",
       };
     }
     const completed = sessions
@@ -320,7 +325,7 @@ export function MentorLiveSessionsPanel() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                   <th className="px-4 py-2.5">ID</th>
-                  <th className="px-4 py-2.5">Student</th>
+                  <th className="px-4 py-2.5">Student ID</th>
                   <th className="px-4 py-2.5">Topic</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Time</th>
@@ -346,10 +351,14 @@ export function MentorLiveSessionsPanel() {
                       <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700 dark:text-slate-300">
                         {s.readableId}
                       </td>
-                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
-                        {s.studentName || "—"}
+                      <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-800 dark:text-slate-100">
+                        {s.studentReadableId || "—"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{topicFromRow(s)}</td>
+                      <td className="max-w-[200px] px-4 py-3 text-slate-600 dark:text-slate-300">
+                        <p className="truncate font-medium text-slate-800 dark:text-slate-100" title={topicFromRow(s)}>
+                          {topicFromRow(s)}
+                        </p>
+                      </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                         {friendlyDate(s.sessionDate)}
                       </td>

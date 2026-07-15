@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
+import { AuthModal } from "@/app/components/ui/auth-modal";
 import { LandingHeader } from "@/app/sections/landing/landing-header";
 import { ContactModal } from "@/app/components/ui/contact-modal";
 import Footer from "@/app/components/ui/Footer";
@@ -24,22 +25,31 @@ import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 export function AboutPageShell() {
   const router = useRouter();
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const user = useSyncExternalStore<AuthUser | null>(
     subscribeAuthStore,
     readAuthSnapshot,
     () => null
   );
 
+  function handleBookSessionClick() {
+    if (user?.role === "student") {
+      router.push("/dashboard/live-session-book");
+      return;
+    }
+    setIsAuthModalOpen(true);
+  }
+
   return (
     <div className="min-h-screen bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       <LandingHeader
         user={user}
-        onAuthClick={() => router.push("/?auth=login")}
+        onAuthClick={() => setIsAuthModalOpen(true)}
         onDashboardClick={() => router.push("/dashboard")}
         onContactClick={() => setIsContactModalOpen(true)}
       />
       <main>
-        <AboutHeroSection data={aboutHero} />
+        <AboutHeroSection data={aboutHero} onPrimaryCtaClick={handleBookSessionClick} />
         <AboutMissionSection
           heading={mission.heading}
           description={mission.description}
@@ -55,6 +65,19 @@ export function AboutPageShell() {
         open={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
       />
+      {isAuthModalOpen ? (
+        <AuthModal
+          open={isAuthModalOpen}
+          initialView="login"
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthSuccess={(authUser) => {
+            setIsAuthModalOpen(false);
+            if (authUser.role === "student") {
+              router.push("/dashboard/live-session-book");
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 }

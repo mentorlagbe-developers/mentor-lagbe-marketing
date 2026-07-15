@@ -75,7 +75,7 @@ export function LandingPageShell() {
     const timer = window.setTimeout(() => {
       sessionStorage.setItem(key, "1");
       setShowInitialLoader(false);
-    }, 1400);
+    }, 550);
     return () => window.clearTimeout(timer);
   }, [showInitialLoader]);
 

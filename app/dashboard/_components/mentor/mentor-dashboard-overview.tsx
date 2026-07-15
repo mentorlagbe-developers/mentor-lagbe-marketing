@@ -8,7 +8,7 @@ import { StudentQuickStats } from "@/app/dashboard/_components/student/student-q
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
-import { isUpcomingLiveSession } from "@/app/dashboard/_components/mentor/mentor-session-utils";
+import { formatStatus, isUpcomingLiveSession, statusTone, toneClasses } from "@/app/dashboard/_components/mentor/mentor-session-utils";
 import { useNotifications } from "@/lib/notifications-context";
 import { calendarDateFromApiValue, calendarDateFromRecord } from "@/lib/session-datetime";
 import { sessionReadableIdFromRecord } from "@/lib/session-readable-id";
@@ -20,6 +20,10 @@ type DashboardSession = {
   session_date?: string;
   course_name?: string;
   custom_course_name?: string;
+  topic_name?: string;
+  custom_topic_name?: string;
+  topicName?: string;
+  customTopicName?: string;
   status?: string;
   start_time?: string;
   end_time?: string;
@@ -187,6 +191,11 @@ function studentReadableId(s: DashboardSession): string {
   return uid || "—";
 }
 
+function studentDisplayId(s: DashboardSession): string {
+  const id = studentReadableId(s);
+  return id && id !== "—" ? id : "—";
+}
+
 function sessionLabel(s: DashboardSession | null | undefined): string {
   if (!s) return "None";
   const date = friendlyDate(s.session_date);
@@ -195,27 +204,14 @@ function sessionLabel(s: DashboardSession | null | undefined): string {
 }
 
 function sessionTopic(s: DashboardSession): string {
-  return s.custom_course_name ?? s.course_name ?? "—";
+  return (
+    s.custom_topic_name?.trim() ||
+    s.customTopicName?.trim() ||
+    s.topic_name?.trim() ||
+    s.topicName?.trim() ||
+    "—"
+  );
 }
-
-function studentName(s: DashboardSession): string {
-  return s.student?.name ?? s.student_name ?? "—";
-}
-
-function statusTone(status = ""): "success" | "warning" | "danger" | "info" {
-  const s = status.toLowerCase();
-  if (s.includes("completed")) return "success";
-  if (s.includes("pending") || s.includes("scheduled") || s.includes("accepted")) return "warning";
-  if (s.includes("cancel") || s.includes("declined") || s.includes("expired")) return "danger";
-  return "info";
-}
-
-const toneMap: Record<"success" | "warning" | "danger" | "info", string> = {
-  success: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-900/25 dark:text-emerald-300",
-  warning: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/25 dark:text-amber-300",
-  danger: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/40 dark:bg-rose-900/25 dark:text-rose-300",
-  info: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/40 dark:bg-sky-900/25 dark:text-sky-300",
-};
 
 // ─── Gender badge ─────────────────────────────────────────────
 function GenderBadge({ gender }: { gender?: string }) {
@@ -502,12 +498,12 @@ export function MentorDashboardOverview() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                   <th className="px-4 py-2.5">ID</th>
-                  <th className="px-4 py-2.5">Student</th>
+                  <th className="px-4 py-2.5">Student ID</th>
                   <th className="px-4 py-2.5">Topic</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Time</th>
                   <th className="px-4 py-2.5">Join</th>
-                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5 whitespace-nowrap">Status</th>
                   <th className="px-4 py-2.5 text-center">Actions</th>
                 </tr>
               </thead>
@@ -520,11 +516,13 @@ export function MentorDashboardOverview() {
                     <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700 dark:text-slate-300">
                       {s.readable_id ?? "—"}
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
-                      {studentName(s)}
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-800 dark:text-slate-100">
+                      {studentDisplayId(s)}
                     </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                      {sessionTopic(s)}
+                    <td className="max-w-[200px] px-4 py-3 text-slate-600 dark:text-slate-400">
+                      <p className="truncate font-medium text-slate-800 dark:text-slate-100" title={sessionTopic(s)}>
+                        {sessionTopic(s)}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                       {friendlyDate(s.session_date)}
@@ -540,8 +538,13 @@ export function MentorDashboardOverview() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", toneMap[statusTone(s.status)])}>
-                        {(s.status ?? "unknown").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                      <span
+                        className={cn(
+                          "inline-flex whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize",
+                          toneClasses(statusTone(s.status ?? "")),
+                        )}
+                      >
+                        {formatStatus(s.status ?? "unknown")}
                       </span>
                     </td>
                     <td className="px-4 py-3">
