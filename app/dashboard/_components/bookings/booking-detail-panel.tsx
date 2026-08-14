@@ -17,6 +17,11 @@ import {
   submitBookingPayment,
   type StudentBookingDetail,
 } from "@/lib/live-sessions-student-api";
+import {
+  formatBdPhoneForSessionPayment,
+  isValidBdPhoneForSessionPayment,
+  sessionPaymentPhoneHint,
+} from "@/lib/bd-phone";
 import { cn } from "@/lib/utils";
 import { meetingJoinDisabledTitle, useMeetingJoinAccess } from "@/lib/session-join-timing";
 
@@ -78,6 +83,7 @@ export function BookingDetailPanel({
   const [paymentMethod, setPaymentMethod] = useState<"bkash" | "nagad">("bkash");
   const [trxId, setTrxId] = useState("");
   const [payerNumber, setPayerNumber] = useState("");
+  const [payerNumberError, setPayerNumberError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
@@ -126,13 +132,24 @@ export function BookingDetailPanel({
       setActionMessage("Enter TrxID and the phone number used for payment.");
       return;
     }
+    if (!isValidBdPhoneForSessionPayment(payerNumber)) {
+      setPayerNumberError(sessionPaymentPhoneHint());
+      setActionMessage(null);
+      return;
+    }
+    const formattedPayer = formatBdPhoneForSessionPayment(payerNumber);
+    if (!formattedPayer) {
+      setPayerNumberError(sessionPaymentPhoneHint());
+      return;
+    }
     setIsSubmitting(true);
     setActionMessage(null);
+    setPayerNumberError(null);
     try {
       await submitBookingPayment(detail.id, {
         paymentMethod,
         trxId: trxId.trim(),
-        payerNumber: payerNumber.trim(),
+        payerNumber: formattedPayer,
         amountBdt: detail.priceBdt,
       });
       setTrxId("");
@@ -266,14 +283,35 @@ export function BookingDetailPanel({
             <label className="space-y-1 text-sm sm:col-span-2">
               <span className="font-medium text-slate-700 dark:text-slate-300">Payer number</span>
               <input
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                maxLength={14}
                 value={payerNumber}
-                onChange={(e) => setPayerNumber(e.target.value)}
-                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm dark:border-slate-600 dark:bg-slate-900"
-                placeholder="+8801XXXXXXXXX"
+                onChange={(e) => {
+                  setPayerNumber(e.target.value);
+                  setPayerNumberError(null);
+                }}
+                className={cn(
+                  "h-10 w-full rounded-lg border px-3 text-sm dark:bg-slate-900",
+                  payerNumberError
+                    ? "border-rose-300 dark:border-rose-700"
+                    : "border-slate-200 dark:border-slate-600",
+                )}
+                placeholder="01712345678"
+                aria-invalid={Boolean(payerNumberError)}
               />
+              <p className="text-xs text-slate-500 dark:text-slate-400">{sessionPaymentPhoneHint()}</p>
+              {payerNumberError ? (
+                <p className="text-xs text-rose-600 dark:text-rose-400">{payerNumberError}</p>
+              ) : null}
             </label>
           </div>
-          <Button className="mt-3" disabled={isSubmitting} onClick={() => void handlePaymentSubmit()}>
+          <Button
+            className="mt-3"
+            disabled={isSubmitting || !isValidBdPhoneForSessionPayment(payerNumber) || !trxId.trim()}
+            onClick={() => void handlePaymentSubmit()}
+          >
             {isSubmitting ? "Submitting…" : "Submit payment"}
           </Button>
         </div>

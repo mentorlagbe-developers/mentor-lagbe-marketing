@@ -55,6 +55,26 @@ export function isValidBdPhoneForCertPayment(value: string): boolean {
   return /^\+8801\d{9}$/.test(formatBdPhoneForCertPayment(value));
 }
 
+/**
+ * Live session bKash/Nagad payer number — must be 11-digit `01…`, `+8801…`, or `8801…`.
+ * Rejects bare 10-digit numbers (no leading 0 / country code).
+ */
+export function formatBdPhoneForSessionPayment(input: string): string | undefined {
+  const trimmed = input.trim().replace(/\s+/g, "");
+  if (/^01[3-9]\d{8}$/.test(trimmed)) return trimmed;
+  if (/^\+8801[3-9]\d{8}$/.test(trimmed)) return trimmed;
+  if (/^8801[3-9]\d{8}$/.test(trimmed)) return trimmed;
+  return undefined;
+}
+
+export function isValidBdPhoneForSessionPayment(value: string): boolean {
+  return formatBdPhoneForSessionPayment(value) !== undefined;
+}
+
+export function sessionPaymentPhoneHint(): string {
+  return "Use 11 digits starting with 01 (e.g. 01712345678), or +8801… / 8801…";
+}
+
 /** @deprecated Use formatBdPhoneForCertPayment */
 export const toBdPhoneE164Api = formatBdPhoneForCertPayment;
 

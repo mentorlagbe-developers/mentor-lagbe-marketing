@@ -38,13 +38,16 @@
 | Booking detail UI | [`app/dashboard/_components/bookings/booking-detail-panel.tsx`](app/dashboard/_components/bookings/booking-detail-panel.tsx) |
 | Live session payment block | [`live-session-overview.tsx`](app/dashboard/_components/live-session/live-session-overview.tsx) |
 | Admin payments | [`admin-payments-panel.tsx`](app/dashboard/_components/admin/admin-payments-panel.tsx) |
-| Jitsi meet room | [`video_conferancing/`](video_conferancing/) · `/dashboard/meet/[sessionId]` |
+| Manual Google Meet (mentor) | [`mentor-session-requests.tsx`](app/dashboard/_components/mentor/mentor-session-requests.tsx) · accept + [`mentor-dashboard-overview.tsx`](app/dashboard/_components/mentor/mentor-dashboard-overview.tsx) · edit |
+| Jitsi meet room (optional) | [`video_conferancing/`](video_conferancing/) · inactive when `NEXT_PUBLIC_JITSI_ENABLED=false` |
 
-## Jitsi (meet page)
+## Video / meet links
 
-- Public `meet.jit.si`: mentor joins first (`POST .../jitsi-presence`); student polls `GET .../jitsi-presence` before embed.
-- On hangup: iframe unmounts → [`SessionEndedPanel`](video_conferancing/SessionEndedPanel.tsx) (no 8x8 promo).
-- Config: [`jitsi-config.ts`](video_conferancing/jitsi-config.ts) — lobby off, camera off, `enableClosePage: false`.
+**Active mode:** manual Google Meet — mentor pastes link on accept (`POST .../accept` `{ meetLink }`) and can edit via `PATCH .../sessions/:id/meet-link`.
+
+**Env:** `NEXT_PUBLIC_JITSI_ENABLED=false` (frontend) and `JITSI_ENABLED=false` (backend).
+
+**Jitsi (dormant):** Set both flags `true` to use in-app `/dashboard/meet/[sessionId]` instead of external Google Meet tabs.
 
 ## Dashboard routes (student)
 

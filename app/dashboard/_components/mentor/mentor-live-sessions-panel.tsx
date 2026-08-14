@@ -7,13 +7,18 @@ import { MentorJoinMeetingButton } from "@/app/dashboard/_components/mentor/ment
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
+import { Pagination } from "@/app/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/lib/notifications-context";
 import {
+  compareMentorSessionsByStartAsc,
+  compareMentorSessionsByStartDesc,
+  canShowMentorJoinButton,
   fetchMentorSessions,
   formatStatus,
   formatTime,
-  isUpcomingLiveSession,
+  isMentorSessionUpcoming,
+  isDashboardSessionUpcoming,
   matchesMentorHistoryFilter,
   sessionTopicLabel,
   type MentorHistoryFilter,
@@ -56,6 +61,8 @@ const HISTORY_FILTERS: { value: MentorHistoryFilter; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "canceled", label: "Canceled" },
 ];
+
+const HISTORY_PAGE_SIZE = 10;
 
 function friendlyDate(raw?: string): string {
   if (!raw) return "—";
@@ -111,7 +118,7 @@ function SessionDetailModal({ session, onClose }: { session: MentorSession; onCl
             </div>
           ))}
         </div>
-        {session.meetLink?.trim() ? (
+        {session.meetLink?.trim() && canShowMentorJoinButton(session) ? (
           <MentorJoinMeetingButton session={session} variant="full" />
         ) : null}
         <div className="flex justify-end">
@@ -129,6 +136,7 @@ export function MentorLiveSessionsPanel() {
   const [summary, setSummary] = useState<MentorDashboardSummary | null>(null);
   const [sessions, setSessions] = useState<MentorSession[]>([]);
   const [historyFilter, setHistoryFilter] = useState<MentorHistoryFilter>("all");
+  const [historyPage, setHistoryPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewSession, setViewSession] = useState<MentorSession | null>(null);
@@ -176,17 +184,13 @@ export function MentorLiveSessionsPanel() {
   const upcomingFromList = useMemo(
     () =>
       sessions
-        .filter((s) => isUpcomingLiveSession(s.status))
-        .sort((a, b) => {
-          const da = new Date(a.sessionDate).getTime() || 0;
-          const db = new Date(b.sessionDate).getTime() || 0;
-          return da - db;
-        }),
+        .filter((s) => isMentorSessionUpcoming(s))
+        .sort(compareMentorSessionsByStartAsc),
     [sessions],
   );
 
   const nextCard = useMemo(() => {
-    if (summary?.nextSession) {
+    if (summary?.nextSession && isDashboardSessionUpcoming(summary.nextSession)) {
       return {
         label: sessionCardLabel(summary.nextSession),
         trend: summary.nextSession.custom_topic_name ?? summary.nextSession.topic_name ?? "Next confirmed session",
@@ -228,13 +232,31 @@ export function MentorLiveSessionsPanel() {
   );
 
   const filteredHistory = useMemo(() => {
-    const sorted = [...sessions].sort((a, b) => {
-      const da = new Date(a.sessionDate).getTime() || 0;
-      const db = new Date(b.sessionDate).getTime() || 0;
-      return db - da;
-    });
-    return sorted.filter((s) => matchesMentorHistoryFilter(s.status, historyFilter));
+    const sorted = [...sessions].sort(compareMentorSessionsByStartDesc);
+    return sorted.filter((s) => matchesMentorHistoryFilter(s, historyFilter));
   }, [sessions, historyFilter]);
+
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / HISTORY_PAGE_SIZE));
+
+  const paginatedHistory = useMemo(() => {
+    const start = (historyPage - 1) * HISTORY_PAGE_SIZE;
+    return filteredHistory.slice(start, start + HISTORY_PAGE_SIZE);
+  }, [filteredHistory, historyPage]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyFilter]);
+
+  useEffect(() => {
+    if (historyPage > historyTotalPages) {
+      setHistoryPage(historyTotalPages);
+    }
+  }, [historyPage, historyTotalPages]);
+
+  const emptyHistoryMessage =
+    historyFilter === "upcoming"
+      ? "No upcoming sessions — past and completed sessions are hidden here."
+      : "No sessions in this filter";
 
   return (
     <section className="space-y-5">
@@ -317,7 +339,7 @@ export function MentorLiveSessionsPanel() {
         ) : filteredHistory.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <CalendarClock className="h-8 w-8 text-slate-300 dark:text-slate-600" />
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No sessions in this filter</p>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{emptyHistoryMessage}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -329,13 +351,18 @@ export function MentorLiveSessionsPanel() {
                   <th className="px-4 py-2.5">Topic</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Time</th>
-                  <th className="px-4 py-2.5">Join</th>
+                  <th
+                    className="px-4 py-2.5"
+                    title="Open the Google Meet room when the session start time has arrived"
+                  >
+                    Join meeting
+                  </th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredHistory.map((s) => {
+                {paginatedHistory.map((s) => {
                   const tone = statusTone(s.status);
                   const time =
                     s.startTime && s.endTime
@@ -364,7 +391,7 @@ export function MentorLiveSessionsPanel() {
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{time}</td>
                       <td className="px-4 py-3">
-                        {s.meetLink?.trim() && isUpcomingLiveSession(s.status) ? (
+                        {canShowMentorJoinButton(s) ? (
                           <MentorJoinMeetingButton session={s} variant="compact" />
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
@@ -397,6 +424,17 @@ export function MentorLiveSessionsPanel() {
             </table>
           </div>
         )}
+
+        {!isLoading && filteredHistory.length > 0 ? (
+          <Pagination
+            className="border-t border-slate-100 px-5 py-4 dark:border-slate-700"
+            page={historyPage}
+            totalPages={historyTotalPages}
+            totalItems={filteredHistory.length}
+            pageSize={HISTORY_PAGE_SIZE}
+            onPageChange={setHistoryPage}
+          />
+        ) : null}
       </div>
 
       {viewSession ? <SessionDetailModal session={viewSession} onClose={() => setViewSession(null)} /> : null}

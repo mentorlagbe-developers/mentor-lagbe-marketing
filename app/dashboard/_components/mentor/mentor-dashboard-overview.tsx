@@ -1,14 +1,16 @@
 "use client";
 
 import { startTransition, useEffect, useMemo, useState } from "react";
-import { CalendarClock, Eye, RefreshCw, User } from "lucide-react";
+import { CalendarClock, Edit2, Eye, ExternalLink, RefreshCw, User } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { isValidGoogleMeetUrl } from "@/lib/meet-link";
 import { MentorJoinMeetingButton } from "@/app/dashboard/_components/mentor/mentor-join-meeting-button";
 import { StudentQuickStats } from "@/app/dashboard/_components/student/student-quick-stats";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatStatus, isUpcomingLiveSession, statusTone, toneClasses } from "@/app/dashboard/_components/mentor/mentor-session-utils";
+import { canShowMentorJoinForDashboardRow, dashboardSessionToTimingRecord, formatStatus, isDashboardSessionNotEnded, statusTone, toneClasses } from "@/app/dashboard/_components/mentor/mentor-session-utils";
+import { sessionStartMsFromRecord } from "@/lib/session-join-timing";
 import { useNotifications } from "@/lib/notifications-context";
 import { calendarDateFromApiValue, calendarDateFromRecord } from "@/lib/session-datetime";
 import { sessionReadableIdFromRecord } from "@/lib/session-readable-id";
@@ -292,7 +294,7 @@ function SessionDetailModal({ session, onClose }: { session: DashboardSession; o
         )}
 
         {/* Meet link — never show raw URL */}
-        {session.meet_link?.trim() && session.id ? (
+        {session.meet_link?.trim() && canShowMentorJoinForDashboardRow(session) ? (
           <MentorJoinMeetingButton session={session} variant="full" />
         ) : null}
 
@@ -304,8 +306,95 @@ function SessionDetailModal({ session, onClose }: { session: DashboardSession; o
   );
 }
 
-// Manual Google Meet link editor — disabled (built-in video conferencing).
-// See git history for EditMeetLinkModal + PATCH /live-sessions/sessions/:id/meet-link.
+// ─── Edit Meet Link Modal ─────────────────────────────────────
+function EditMeetLinkModal({
+  session,
+  onClose,
+  onSaved,
+}: {
+  session: DashboardSession;
+  onClose: () => void;
+  onSaved: (id: string, link: string) => void;
+}) {
+  const [link, setLink] = useState(session.meet_link ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    if (!link.trim()) {
+      setError("Please enter a valid Google Meet link.");
+      return;
+    }
+    if (!isValidGoogleMeetUrl(link)) {
+      setError("Enter a complete Google Meet link (e.g. meet.google.com/xxx-yyy-zzz).");
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      const sid = encodeURIComponent(session.id ?? "");
+      await apiFetch(`/live-sessions/sessions/${sid}/meet-link`, {
+        method: "PATCH",
+        auth: true,
+        body: JSON.stringify({ meetLink: link.trim() }),
+      });
+      onSaved(session.id ?? "", link.trim());
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update meet link.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} className="w-full max-w-md">
+      <div className="space-y-4 p-6">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Update Meet Link</h2>
+        <div className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 dark:border-sky-800/40 dark:bg-sky-950/30">
+          <p className="font-semibold text-sky-800 dark:text-sky-300">{sessionTopic(session)}</p>
+          <p className="mt-0.5 text-xs text-sky-600 dark:text-sky-400">
+            {friendlyDate(session.session_date)} · {formatSessionTimeRange(session)}
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Google Meet Link <span className="text-rose-500">*</span>
+          </label>
+          <div className="relative">
+            <ExternalLink className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="url"
+              value={link}
+              onChange={(e) => {
+                setLink(e.target.value);
+                setError(null);
+              }}
+              placeholder="https://meet.google.com/..."
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
+            />
+          </div>
+          {error ? (
+            <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-950/30 dark:text-rose-400">
+              {error}
+            </p>
+          ) : null}
+          <p className="mt-1.5 text-xs text-slate-400">The student will receive the updated link instantly.</p>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={() => void handleSave()} disabled={isSaving || !isValidGoogleMeetUrl(link)}>
+            {isSaving ? "Saving…" : "Save Link"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────
 export function MentorDashboardOverview() {
@@ -315,7 +404,8 @@ export function MentorDashboardOverview() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewSession, setViewSession] = useState<DashboardSession | null>(null);
-  // const [editSession, setEditSession] = useState<DashboardSession | null>(null);
+  const [editSession, setEditSession] = useState<DashboardSession | null>(null);
+  const [meetLinkOverrides, setMeetLinkOverrides] = useState<Record<string, string>>({});
 
   function normalizeSessions(raw: unknown): DashboardSession[] {
     let list: DashboardSession[] = [];
@@ -360,7 +450,7 @@ export function MentorDashboardOverview() {
       }
 
       if (allResult.status === "fulfilled") {
-        const list = normalizeSessions(allResult.value).filter((s) => isUpcomingLiveSession(s.status));
+        const list = normalizeSessions(allResult.value).filter((s) => isDashboardSessionNotEnded(s));
         setExtraSessions(list);
       }
       // If allResult fails we still have upcomingSessions from the dashboard — no error needed
@@ -386,6 +476,31 @@ export function MentorDashboardOverview() {
     return () => window.clearTimeout(timer);
   }, [sessionAcceptedAt, sessionRefreshAt]);
 
+  // Merge upcomingSessions (from dashboard summary) with extra sessions, deduplicate by id
+  const upcoming = useMemo(() => {
+    const base = (data?.upcomingSessions ?? []).filter((s) => isDashboardSessionNotEnded(s));
+    const merged = [...base];
+    for (const s of extraSessions) {
+      if (s.id && !merged.some((x) => x.id === s.id)) {
+        merged.push(s);
+      }
+    }
+    return merged
+      .map((s) => {
+        const id = s.id ?? "";
+        const override = id ? meetLinkOverrides[id] : undefined;
+        return override ? { ...s, meet_link: override } : s;
+      })
+      .filter((s) => isDashboardSessionNotEnded(s))
+      .sort((a, b) => {
+        const aRec = dashboardSessionToTimingRecord(a);
+        const bRec = dashboardSessionToTimingRecord(b);
+        const aMs = sessionStartMsFromRecord(aRec) ?? 0;
+        const bMs = sessionStartMsFromRecord(bRec) ?? 0;
+        return aMs - bMs;
+      });
+  }, [data, extraSessions, meetLinkOverrides]);
+
   // ── Quick stats ──────────────────────────────────────────────
   const stats = useMemo(() => {
     if (!data) {
@@ -396,6 +511,7 @@ export function MentorDashboardOverview() {
         { label: "Next Session", value: "—", trend: "Upcoming confirmed session" },
       ];
     }
+    const nextUpcoming = upcoming[0] ?? null;
     return [
       {
         label: "Total Session Hours",
@@ -414,29 +530,15 @@ export function MentorDashboardOverview() {
       },
       {
         label: "Next Session",
-        value: sessionLabel(data.nextSession),
-        trend: data.nextSession ? sessionTopic(data.nextSession) : "Nothing scheduled",
+        value: nextUpcoming ? sessionLabel(nextUpcoming) : "Nothing scheduled",
+        trend: nextUpcoming ? sessionTopic(nextUpcoming) : "Accept requests to schedule sessions",
       },
     ];
-  }, [data]);
+  }, [data, upcoming]);
 
-  // Merge upcomingSessions (from dashboard summary) with extra sessions, deduplicate by id
-  const upcoming = useMemo(() => {
-    const base = data?.upcomingSessions ?? [];
-    const merged = [...base];
-    for (const s of extraSessions) {
-      if (s.id && !merged.some(x => x.id === s.id)) {
-        merged.push(s);
-      }
-    }
-    return merged
-      .filter((s) => isUpcomingLiveSession(s.status))
-      .sort((a, b) => {
-        const da = new Date(a.session_date ?? "").getTime() || 0;
-        const db = new Date(b.session_date ?? "").getTime() || 0;
-        return da - db;
-      });
-  }, [data, extraSessions]);
+  function handleMeetLinkSaved(id: string, link: string) {
+    setMeetLinkOverrides((prev) => ({ ...prev, [id]: link }));
+  }
 
   return (
     <section className="space-y-5">
@@ -446,7 +548,13 @@ export function MentorDashboardOverview() {
       {viewSession && (
         <SessionDetailModal session={viewSession} onClose={() => setViewSession(null)} />
       )}
-      {/* EditMeetLinkModal disabled — built-in video conferencing */}
+      {editSession ? (
+        <EditMeetLinkModal
+          session={editSession}
+          onClose={() => setEditSession(null)}
+          onSaved={handleMeetLinkSaved}
+        />
+      ) : null}
 
       {/* Upcoming sessions table */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -490,7 +598,7 @@ export function MentorDashboardOverview() {
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <CalendarClock className="h-8 w-8 text-slate-300 dark:text-slate-600" />
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No upcoming sessions</p>
-            <p className="text-xs text-slate-400">Accept session requests and they will appear here.</p>
+            <p className="text-xs text-slate-400">Sessions starting from now will appear here after you accept requests.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -502,7 +610,12 @@ export function MentorDashboardOverview() {
                   <th className="px-4 py-2.5">Topic</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Time</th>
-                  <th className="px-4 py-2.5">Join</th>
+                  <th
+                    className="px-4 py-2.5"
+                    title="Open Google Meet when the session starts (enabled at start time)"
+                  >
+                    Join meeting
+                  </th>
                   <th className="px-4 py-2.5 whitespace-nowrap">Status</th>
                   <th className="px-4 py-2.5 text-center">Actions</th>
                 </tr>
@@ -531,7 +644,7 @@ export function MentorDashboardOverview() {
                       {formatSessionTimeRange(s)}
                     </td>
                     <td className="px-4 py-3">
-                      {s.meet_link?.trim() && s.id ? (
+                      {canShowMentorJoinForDashboardRow(s) && s.id ? (
                         <MentorJoinMeetingButton session={s} variant="compact" />
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
@@ -558,11 +671,14 @@ export function MentorDashboardOverview() {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        {/* Manual meet-link edit disabled — built-in video conferencing
-                        <button type="button" onClick={() => setEditSession(s)} title="Update meet link" ...>
+                        <button
+                          type="button"
+                          onClick={() => setEditSession(s)}
+                          title="Update meet link"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-violet-600 dark:hover:bg-violet-950/40 dark:hover:text-violet-400"
+                        >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        */}
                       </div>
                     </td>
                   </tr>

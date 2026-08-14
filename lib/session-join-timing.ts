@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { calendarDateFromApiValue, calendarDateFromRecord } from "@/lib/session-datetime";
+import { calendarDateFromApiValue, calendarDateFromRecord, localYmd } from "@/lib/session-datetime";
 
 /** Parse "7:30 PM" or "19:30" / "19:30:00" to 24h "HH:mm". */
 function clockTo24h(clock: string): string | null {
@@ -216,6 +216,31 @@ export function evaluateMeetingJoinAccess(
   }
 
   return { canJoin: true, reason: null, startMs, endMs };
+}
+
+/**
+ * True when the session start is still in the future (or now), matching mentor dashboard
+ * "upcoming" semantics (same as backend: session_date/start_time not yet passed).
+ */
+export function isSessionScheduledInFuture(
+  record: Record<string, unknown>,
+  nowMs = Date.now(),
+): boolean {
+  const startMs = sessionStartMsFromRecord(record);
+  if (startMs !== null) return startMs >= nowMs;
+
+  const sessionDate =
+    calendarDateFromRecord(record) ||
+    calendarDateFromApiValue(
+      typeof record.session_date === "string" ? record.session_date : undefined,
+    ) ||
+    calendarDateFromApiValue(
+      typeof record.sessionDate === "string" ? record.sessionDate : undefined,
+    );
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)) return false;
+  const today = localYmd(new Date(nowMs));
+  return sessionDate > today;
 }
 
 export function meetingJoinDisabledTitle(access: MeetingJoinAccess): string {

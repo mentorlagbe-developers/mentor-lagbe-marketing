@@ -36,6 +36,9 @@ export function MentorJoinMeetingButton({
     return <span className="text-xs text-slate-400">—</span>;
   }
 
+  const isExpired = joinAccess.reason === "after_end";
+  const isTerminal = joinAccess.reason === "terminal_status";
+
   return (
     <JoinMeetingButton
       href={meetLink}
@@ -44,6 +47,7 @@ export function MentorJoinMeetingButton({
       variant={variant}
       className={className}
       disabled={!joinAccess.canJoin}
+      disabledVariant={isExpired || isTerminal ? "expired" : "muted"}
       disabledTitle={meetingJoinDisabledTitle(joinAccess)}
     />
   );

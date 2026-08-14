@@ -22,6 +22,8 @@ type JoinMeetingButtonProps = {
   variant?: "full" | "compact";
   className?: string;
   disabled?: boolean;
+  /** Visual style when disabled — `expired` uses warning/amber for past sessions. */
+  disabledVariant?: "muted" | "expired";
   /** Shown as button title when `disabled` is true. */
   disabledTitle?: string;
 };
@@ -40,6 +42,7 @@ export function JoinMeetingButton({
   variant = "full",
   className,
   disabled = false,
+  disabledVariant = "muted",
   disabledTitle,
 }: JoinMeetingButtonProps) {
   const router = useRouter();
@@ -58,7 +61,13 @@ export function JoinMeetingButton({
   const enabledCls =
     "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800/40 dark:bg-emerald-900/25 dark:text-emerald-300";
   const disabledCls =
-    "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500";
+    disabledVariant === "expired"
+      ? "border-amber-200/55 bg-amber-50/45 text-amber-700/65 dark:border-amber-800/35 dark:bg-amber-950/20 dark:text-amber-300/60"
+      : "border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500";
+
+  const buttonLabel = disabled && disabledVariant === "expired" ? "Expired" : "Join meeting";
+
+  const isInactive = !canAttemptJoin;
 
   const handleContinue = useCallback(async () => {
     setBusy(true);
@@ -93,7 +102,8 @@ export function JoinMeetingButton({
     <>
       <button
         type="button"
-        disabled={!canAttemptJoin}
+        aria-disabled={isInactive}
+        tabIndex={isInactive ? -1 : 0}
         title={
           disabled
             ? (disabledTitle ?? "Join is not available yet")
@@ -102,14 +112,25 @@ export function JoinMeetingButton({
               : "No meeting room available"
         }
         onClick={() => {
-          if (!canAttemptJoin) return;
+          if (isInactive) return;
           setErrorMessage(null);
           setConsentOpen(true);
         }}
-        className={cn(variant === "full" ? fullCls : compactCls, canAttemptJoin ? enabledCls : disabledCls, className)}
+        className={cn(
+          variant === "full" ? fullCls : compactCls,
+          canAttemptJoin ? enabledCls : disabledCls,
+          isInactive && "cursor-not-allowed",
+          className,
+        )}
       >
-        <ExternalLink className={variant === "full" ? "h-4 w-4" : "h-3.5 w-3.5"} />
-        Join meeting
+        <ExternalLink
+          className={cn(
+            variant === "full" ? "h-4 w-4" : "h-3.5 w-3.5",
+            isInactive && "opacity-60",
+          )}
+          aria-hidden
+        />
+        {buttonLabel}
       </button>
 
       <PolicyConsentModal

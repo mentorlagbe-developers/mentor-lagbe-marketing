@@ -1,6 +1,7 @@
 // Shared session normalizer for mentor components
 
 import { calendarDateFromApiValue, calendarDateFromRecord, localYmd } from "@/lib/session-datetime";
+import { isSessionScheduledInFuture, sessionEndMsFromRecord, sessionStartMsFromRecord } from "@/lib/session-join-timing";
 import { sessionReadableIdFromRecord } from "@/lib/session-readable-id";
 
 export type MentorSession = {
@@ -172,7 +173,121 @@ export function isToday(dateStr: string): boolean {
   return calendarDateFromApiValue(dateStr) === localYmd();
 }
 
-/** Accepted / approved sessions that are not finished yet (for upcoming lists). */
+export function mentorSessionToTimingRecord(
+  session: Pick<
+    MentorSession,
+    "status" | "sessionDate" | "startTime" | "endTime" | "durationMinutes"
+  >,
+): Record<string, unknown> {
+  return {
+    status: session.status,
+    sessionDate: session.sessionDate,
+    session_date: session.sessionDate,
+    startTime: session.startTime,
+    start_time: session.startTime,
+    endTime: session.endTime,
+    end_time: session.endTime,
+    durationMinutes: session.durationMinutes,
+    duration_minutes: session.durationMinutes,
+  };
+}
+
+/** Active status and session start is still in the future (or later today). */
+export function isMentorSessionUpcoming(
+  session: Pick<
+    MentorSession,
+    "status" | "sessionDate" | "startTime" | "endTime" | "durationMinutes"
+  >,
+  nowMs = Date.now(),
+): boolean {
+  return (
+    isUpcomingLiveSession(session.status) &&
+    isSessionScheduledInFuture(mentorSessionToTimingRecord(session), nowMs)
+  );
+}
+
+export function dashboardSessionToTimingRecord(session: {
+  status?: string;
+  session_date?: string;
+  sessionDate?: string;
+  start_time?: string;
+  startTime?: string;
+  startTime12h?: string;
+  end_time?: string;
+  endTime?: string;
+  endTime12h?: string;
+  duration_minutes?: number;
+  durationMinutes?: number;
+}): Record<string, unknown> {
+  return {
+    status: session.status,
+    session_date: session.session_date ?? session.sessionDate,
+    sessionDate: session.sessionDate ?? session.session_date,
+    start_time: session.start_time ?? session.startTime ?? session.startTime12h,
+    startTime: session.startTime ?? session.start_time ?? session.startTime12h,
+    startTime12h: session.startTime12h,
+    end_time: session.end_time ?? session.endTime ?? session.endTime12h,
+    endTime: session.endTime ?? session.end_time ?? session.endTime12h,
+    duration_minutes: session.duration_minutes ?? session.durationMinutes,
+    durationMinutes: session.durationMinutes ?? session.duration_minutes,
+  };
+}
+
+/** Active status and session has not ended yet (includes live sessions in progress). */
+export function isMentorSessionNotEnded(
+  session: Pick<
+    MentorSession,
+    "status" | "sessionDate" | "startTime" | "endTime" | "durationMinutes"
+  >,
+  nowMs = Date.now(),
+): boolean {
+  if (!isUpcomingLiveSession(session.status)) return false;
+  const rec = mentorSessionToTimingRecord(session);
+  const endMs = sessionEndMsFromRecord(rec);
+  if (endMs !== null) return endMs > nowMs;
+  return isSessionScheduledInFuture(rec, nowMs);
+}
+
+/** Dashboard row: active and not ended (for upcoming table + join button). */
+export function isDashboardSessionNotEnded(
+  session: Parameters<typeof dashboardSessionToTimingRecord>[0],
+  nowMs = Date.now(),
+): boolean {
+  if (!isUpcomingLiveSession(session.status)) return false;
+  const rec = dashboardSessionToTimingRecord(session);
+  const endMs = sessionEndMsFromRecord(rec);
+  if (endMs !== null) return endMs > nowMs;
+  return isSessionScheduledInFuture(rec, nowMs);
+}
+
+export function canShowMentorJoinButton(
+  session: Pick<MentorSession, "status" | "meetLink">,
+): boolean {
+  if (!session.meetLink?.trim()) return false;
+  const s = (session.status ?? "").toLowerCase();
+  return !s.includes("cancel") && !s.includes("declin") && !s.includes("rejected");
+}
+
+export function canShowMentorJoinForDashboardRow(
+  session: Parameters<typeof dashboardSessionToTimingRecord>[0] & { meet_link?: string },
+): boolean {
+  if (!session.meet_link?.trim()) return false;
+  const s = (session.status ?? "").toLowerCase();
+  return !s.includes("cancel") && !s.includes("declin") && !s.includes("rejected");
+}
+
+/** Active status and session start is still in the future (dashboard row shape). */
+export function isDashboardSessionUpcoming(
+  session: Parameters<typeof dashboardSessionToTimingRecord>[0],
+  nowMs = Date.now(),
+): boolean {
+  return (
+    isUpcomingLiveSession(session.status) &&
+    isSessionScheduledInFuture(dashboardSessionToTimingRecord(session), nowMs)
+  );
+}
+
+/** Accepted / approved sessions that are not finished yet (status-only; prefer isMentorSessionUpcoming). */
 export function isUpcomingLiveSession(status = ""): boolean {
   const s = status.toLowerCase();
   if (
@@ -198,10 +313,18 @@ export function isUpcomingLiveSession(status = ""): boolean {
 
 export type MentorHistoryFilter = "all" | "upcoming" | "approved" | "pending" | "canceled";
 
-export function matchesMentorHistoryFilter(status: string, filter: MentorHistoryFilter): boolean {
+export function matchesMentorHistoryFilter(
+  session: Pick<
+    MentorSession,
+    "status" | "sessionDate" | "startTime" | "endTime" | "durationMinutes"
+  >,
+  filter: MentorHistoryFilter,
+  nowMs = Date.now(),
+): boolean {
+  const status = session.status;
   const s = status.toLowerCase();
   if (filter === "all") return true;
-  if (filter === "upcoming") return isUpcomingLiveSession(status);
+  if (filter === "upcoming") return isMentorSessionUpcoming(session, nowMs);
   if (filter === "approved") {
     return (
       s.includes("approved") ||
@@ -226,6 +349,23 @@ export function statusTone(status: string): "success" | "warning" | "danger" | "
   if (s.includes("pending") || s.includes("waiting")) return "warning";
   if (s.includes("cancel") || s.includes("declined") || s.includes("expired") || s.includes("failed")) return "danger";
   return "info";
+}
+
+export function compareMentorSessionsByStartAsc(
+  a: Pick<MentorSession, "sessionDate" | "startTime">,
+  b: Pick<MentorSession, "sessionDate" | "startTime">,
+): number {
+  const aMs = sessionStartMsFromRecord(mentorSessionToTimingRecord(a as MentorSession)) ?? 0;
+  const bMs = sessionStartMsFromRecord(mentorSessionToTimingRecord(b as MentorSession)) ?? 0;
+  if (aMs !== bMs) return aMs - bMs;
+  return (a.sessionDate ?? "").localeCompare(b.sessionDate ?? "");
+}
+
+export function compareMentorSessionsByStartDesc(
+  a: Pick<MentorSession, "sessionDate" | "startTime">,
+  b: Pick<MentorSession, "sessionDate" | "startTime">,
+): number {
+  return -compareMentorSessionsByStartAsc(a, b);
 }
 
 export function toneClasses(tone: "success" | "warning" | "danger" | "info"): string {
