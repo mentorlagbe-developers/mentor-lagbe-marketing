@@ -54,6 +54,7 @@ export function JoinMeetingButton({
   const hasStaticUrl = Boolean(href?.trim() && isValidMeetingJoinUrl(href));
   const canAttemptJoin = Boolean(jitsiInApp || hasStaticUrl || resolveMeetingUrl) && !disabled;
 
+  
   const fullCls =
     "inline-flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition";
   const compactCls =
