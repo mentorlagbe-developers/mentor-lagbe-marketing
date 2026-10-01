@@ -10,6 +10,7 @@ import type { AuthUser } from "@/lib/mock-auth";
 import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import { LandingHeader } from "@/app/sections/landing/landing-header";
 import Footer from "@/app/components/ui/Footer";
+import { isComingSoonMode } from "@/lib/coming-soon";
 
 function formatBdt(value: string | number) {
   const amount = typeof value === "string" ? Number(value) : value;
@@ -30,6 +31,7 @@ export default function CertificationDetailPage() {
   const router = useRouter();
   const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
   const slug = String(params.slug ?? "");
+  const comingSoon = isComingSoonMode();
 
   const [exam, setExam] = useState<CertificationExamDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,9 +100,11 @@ export default function CertificationDetailPage() {
     <main className="min-h-screen bg-slate-50/60 dark:bg-slate-950">
       <LandingHeader
         user={user}
+        comingSoon={comingSoon}
         onAuthClick={() => router.push("/?auth=login")}
         onDashboardClick={() => router.push("/dashboard")}
         onContactClick={() => router.push("/#contact")}
+        onLearnNowClick={() => router.push("/#learn-now")}
       />
       <div className="border-b border-slate-200 bg-linear-to-br from-sky-50 via-white to-indigo-50/50 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950">
         <div className="mx-auto max-w-352 px-3 py-7 sm:px-4 lg:px-6">
@@ -276,13 +280,16 @@ export default function CertificationDetailPage() {
             ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={() => void handleBook()}
-            className="mt-5 w-full rounded-lg bg-sky-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
-          >
-            Book certification exam
-          </button>
+          {/* CTA_HIDDEN — book exam until full launch */}
+          {!comingSoon ? (
+            <button
+              type="button"
+              onClick={() => void handleBook()}
+              className="mt-5 w-full rounded-lg bg-sky-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
+            >
+              Book certification exam
+            </button>
+          ) : null}
 
           {bookingMessage ? (
             <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">

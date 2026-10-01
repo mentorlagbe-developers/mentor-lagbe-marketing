@@ -12,6 +12,7 @@ import {
 import { io, type Socket } from "socket.io-client";
 import { apiFetch } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-store";
+import { isComingSoonMode } from "@/lib/coming-soon";
 import type { UserRole } from "@/lib/mock-auth";
 
 export type NotificationStatus = "pending" | "sent" | "failed" | "read";
@@ -265,6 +266,10 @@ export function NotificationsProvider({
   }, []);
 
   const refresh = useCallback(async () => {
+    if (isComingSoonMode()) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const raw = await apiFetch<unknown>("/notifications/me?page=1&limit=20", { auth: true });
@@ -316,9 +321,14 @@ export function NotificationsProvider({
   }, [refresh]);
 
   useEffect(() => {
+    if (isComingSoonMode()) {
+      return;
+    }
+
     const token = getAccessToken();
     if (!token) return;
 
+    // BACKEND_LIVE — Socket.IO /notifications (OpenWA is backend-only; not used here)
     const eventsForRole: string[] =
       role === "teacher"
         ? [...MENTOR_SOCKET_EVENTS, ...STUDENT_SOCKET_EVENTS]

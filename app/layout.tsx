@@ -16,7 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Mentor Lagbe",
   description:
-    "One-to-one live mentorship platform for students, resources, and guided learning.",
+    process.env.NEXT_PUBLIC_COMING_SOON === "true"
+      ? "One-to-one live mentorship coming soon. Free courses and live sessions on YouTube and Facebook."
+      : "One-to-one live mentorship platform for students, resources, and guided learning.",
 };
 
 export default function RootLayout({

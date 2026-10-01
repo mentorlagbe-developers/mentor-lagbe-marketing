@@ -15,13 +15,13 @@ import { Button } from "@/app/components/ui/button";
 import { FeatureCard } from "@/app/components/ui/FeatureCard";
 import type { AuthUser } from "@/lib/mock-auth";
 import { BadgePill } from "@/app/components/ui/badge-pill";
-
 type HeroSectionProps = {
   user: AuthUser | null;
+  comingSoon?: boolean;
   onPrimaryAction: () => void;
 };
 
-export function HeroSection({ user, onPrimaryAction }: HeroSectionProps) {
+export function HeroSection({ user, comingSoon = false, onPrimaryAction }: HeroSectionProps) {
   const isVisible = true;
 
   return (
@@ -30,7 +30,7 @@ export function HeroSection({ user, onPrimaryAction }: HeroSectionProps) {
       <div className="absolute inset-0 -z-20 bg-white dark:bg-slate-950" />
       <div className={`mb-10 flex justify-center px-4 scroll-reveal ${isVisible ? "is-visible" : ""}`}>
         <BadgePill icon={Video} variant="sky">
-          One-to-One Mentorship
+          {comingSoon ? "One-to-One Mentorship — Coming Soon" : "One-to-One Mentorship"}
         </BadgePill>
       </div>
       {/* Grid pattern */}
@@ -56,20 +56,48 @@ export function HeroSection({ user, onPrimaryAction }: HeroSectionProps) {
         {/* ── Headline block ── */}
         <div className="mt-1 space-y-2 text-center">
           <h1 className="mx-auto max-w-3xl text-4xl font-extrabold leading-[1.12] tracking-tight text-slate-950 dark:text-white sm:text-5xl">
-            Pick a <span className="text-sky-500">topic.</span> Pick a <span className="text-sky-500">time.</span>
-            <br />
-            Clear your <span className="text-sky-500">confusions.</span>
+            {comingSoon ? (
+              <>
+                Live <span className="text-sky-500">one-to-one</span> mentorship
+                <br />
+                is <span className="text-sky-500">on the way.</span>
+              </>
+            ) : (
+              <>
+                Pick a <span className="text-sky-500">topic.</span> Pick a <span className="text-sky-500">time.</span>
+                <br />
+                Clear your <span className="text-sky-500">confusions.</span>
+              </>
+            )}
           </h1>
           <p className="mx-auto max-w-xl text-base text-slate-500 dark:text-slate-300">
-            Get unstuck in minutes, not days. Live{" "}
-            <span className="font-semibold text-sky-500">one-to-one</span>{" "}
-            sessions built around your schedule.
+            {comingSoon ? (
+              <>
+                We are building booked sessions with expert mentors. Meanwhile, watch recorded
+                courses on YouTube and join free live sessions on Facebook.
+              </>
+            ) : (
+              <>
+                Get unstuck in minutes, not days. Live{" "}
+                <span className="font-semibold text-sky-500">one-to-one</span>{" "}
+                sessions built around your schedule.
+              </>
+            )}
           </p>
-          <div className="flex justify-center pt-1">
-            <Button variant="primary" size="md" onClick={onPrimaryAction} iconRight={Video}>
-              {user ? "Go to Dashboard" : "Book Session"}
-            </Button>
-          </div>
+          {/* CTA_HIDDEN — hero actions (Book Session / social) until full launch */}
+          {!comingSoon ? (
+            <div className="flex flex-wrap justify-center gap-3 pt-1">
+              <Button variant="primary" size="md" onClick={onPrimaryAction} iconRight={Video}>
+                {user ? "Go to Dashboard" : "Book Session"}
+              </Button>
+            </div>
+          ) : null}
+          {/* {comingSoon ? (
+            <Button ...>Explore free learning</Button>
+            YouTube / Facebook buttons ...
+          ) : (
+            <Button>Book Session</Button>
+          )} */}
         </div>
 
         {/* ── Hero image area ── */}

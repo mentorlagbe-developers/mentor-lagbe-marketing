@@ -8,6 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { FeaturePoint } from "@/app/components/ui/feature-point";
 
 type LiveSupportSectionProps = {
+  comingSoon?: boolean;
   onCtaClick?: () => void;
 };
 
@@ -29,7 +30,7 @@ const features = [
   },
 ] as const;
 
-export function LiveSupportSection({ onCtaClick }: LiveSupportSectionProps) {
+export function LiveSupportSection({ comingSoon = false, onCtaClick }: LiveSupportSectionProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -128,7 +129,8 @@ export function LiveSupportSection({ onCtaClick }: LiveSupportSectionProps) {
             ))}
           </div>
 
-          {/* CTA button */}
+          {/* CTA_HIDDEN — Find Your Mentor / register CTA until full launch */}
+          {!comingSoon ? (
           <div className="mt-2 w-full">
             <Button
               variant="primary"
@@ -139,12 +141,21 @@ export function LiveSupportSection({ onCtaClick }: LiveSupportSectionProps) {
             >
               Find Your Mentor Now
             </Button>
+          </div>
+          ) : null}
 
-            {/* Price sub-line */}
+          {/* Price sub-line */}
+          <div className="mt-2 w-full">
             <p className="mt-3 text-center text-sm text-slate-500 dark:text-slate-300">
-              Only{" "}
-              <span className="font-semibold text-slate-800 dark:text-slate-100">৳99</span> per
-              session
+              {comingSoon ? (
+                "Paid 1-on-1 booking opens with the full platform launch."
+              ) : (
+                <>
+                  Only{" "}
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">৳99</span> per
+                  session
+                </>
+              )}
             </p>
 
             {/* Social proof */}

@@ -11,6 +11,7 @@ import {
   type AuthUser,
 } from "@/lib/auth-store";
 import { ApiError } from "@/lib/api";
+import { isComingSoonMode } from "@/lib/coming-soon";
 
 let hydrated = false;
 let hydratePromise: Promise<void> | null = null;
@@ -20,12 +21,19 @@ async function hydrateOnce() {
   if (hydratePromise) return hydratePromise;
 
   const task = (async () => {
+    if (isComingSoonMode()) {
+      hydrated = true;
+      hydratePromise = null;
+      return;
+    }
+
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       hydrated = true;
       return;
     }
 
+    // BACKEND_LIVE — session restore via POST /auth/refresh
     try {
       await authApi.refresh();
     } catch {

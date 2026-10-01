@@ -7,6 +7,7 @@ import {
   setAccessToken,
   setRefreshToken,
 } from "@/lib/auth-store";
+import { isComingSoonMode } from "@/lib/coming-soon";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
@@ -73,7 +74,12 @@ function isExpiredTokenError(error: ApiError) {
   return error.message.toLowerCase().includes("jwt expired");
 }
 
+// BACKEND_LIVE — token refresh (skipped when NEXT_PUBLIC_COMING_SOON=true)
 async function refreshAccessToken() {
+  if (isComingSoonMode()) {
+    return false;
+  }
+
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
@@ -114,10 +120,20 @@ async function refreshAccessToken() {
   return true;
 }
 
+// BACKEND_LIVE — all HTTP API calls (throws COMING_SOON when flag is on)
 export async function apiFetch<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
+  if (isComingSoonMode()) {
+    throw new ApiError({
+      code: "COMING_SOON",
+      message:
+        "Mentor Lagbe one-to-one booking is launching soon. The app is not connected to the server right now.",
+      statusCode: 503,
+    });
+  }
+
   const { auth = false, _retried = false, headers, body, ...rest } = options;
   const requestHeaders = new Headers(headers ?? {});
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;

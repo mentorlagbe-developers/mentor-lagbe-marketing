@@ -19,12 +19,14 @@ import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import { CertificationExamCardView } from "@/app/certifications/_components/certification-exam-card";
 import { LandingHeader } from "@/app/sections/landing/landing-header";
 import Footer from "@/app/components/ui/Footer";
+import { isComingSoonMode } from "@/lib/coming-soon";
 
 type PriceFilter = "all" | "under_5k" | "between_5k_10k" | "above_10k";
 type SortFilter = "newly_published" | "featured_first" | "price_low_to_high" | "price_high_to_low";
 
 export default function CertificationsCatalogPage() {
   const router = useRouter();
+  const comingSoon = isComingSoonMode();
   const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
   const [items, setItems] = useState<CertificationExamCard[]>([]);
   const [selectedVendor, setSelectedVendor] = useState("all"); // vendor slug
@@ -47,11 +49,19 @@ export default function CertificationsCatalogPage() {
   const [levels, setLevels] = useState<string[]>([]);
 
   useEffect(() => {
+    if (comingSoon) {
+      setLoading(false);
+      setError(null);
+      setItems([]);
+      return;
+    }
+
     let cancelled = false;
     void (async () => {
       setLoading(true);
       setError(null);
       try {
+        // BACKEND_LIVE — certification catalog APIs
         const [examData, vendorData, categoryData] = await Promise.all([
           listCertificationExams(
             {
@@ -105,6 +115,7 @@ export default function CertificationsCatalogPage() {
     trainingOnly,
     featuredOnly,
     search,
+    comingSoon,
   ]);
 
   const heroStats = useMemo(
@@ -122,9 +133,11 @@ export default function CertificationsCatalogPage() {
     <main className="min-h-screen bg-slate-50/60 dark:bg-slate-950">
       <LandingHeader
         user={user}
+        comingSoon={comingSoon}
         onAuthClick={() => router.push("/?auth=login")}
         onDashboardClick={() => router.push("/dashboard")}
         onContactClick={() => router.push("/#contact")}
+        onLearnNowClick={() => router.push("/#learn-now")}
       />
       <motion.section
         initial={{ opacity: 0, y: 18 }}
@@ -232,6 +245,16 @@ export default function CertificationsCatalogPage() {
           </div>
         </motion.div>
 
+        {comingSoon ? (
+          <p className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-100">
+            Certification booking on the platform is coming with the full launch. For now, learn
+            with us on{" "}
+            <a href="/#learn-now" className="font-semibold underline">
+              YouTube and Facebook
+            </a>
+            .
+          </p>
+        ) : null}
         {error ? <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300">{error}</p> : null}
 
         <div className="grid gap-5 lg:grid-cols-[290px_minmax(0,1fr)]">
@@ -446,9 +469,13 @@ export default function CertificationsCatalogPage() {
               </motion.div>
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <p className="text-base font-semibold text-slate-800 dark:text-slate-200">No certification found</p>
+                <p className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                  {comingSoon ? "Catalog available after platform launch" : "No certification found"}
+                </p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Try changing filters or search with a different keyword.
+                  {comingSoon
+                    ? "Follow our social channels for courses and live sessions in the meantime."
+                    : "Try changing filters or search with a different keyword."}
                 </p>
               </div>
             )}

@@ -10,24 +10,29 @@ import type { AuthUser } from "@/lib/mock-auth";
 
 type LandingHeaderProps = {
   user: AuthUser | null;
+  comingSoon?: boolean;
   onAuthClick: () => void;
   onDashboardClick: () => void;
   onContactClick: () => void;
+  onLearnNowClick?: () => void;
 };
 
 const navItems: Array<{ label: string; href: string; isAction?: boolean }> = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
-  { label: "Certifications", href: "/certifications" },
-  { label: "Become a Mentor", href: "/become-a-mentor" },
+  // NAV_HIDDEN — restore when certifications / mentor onboarding are public again (pages stay at /certifications, /become-a-mentor)
+  // { label: "Certifications", href: "/certifications" },
+  // { label: "Become a Mentor", href: "/become-a-mentor" },
   { label: "Contact", href: "#", isAction: true },
 ];
 
 export function LandingHeader({
   user,
+  comingSoon = false,
   onAuthClick,
   onDashboardClick,
   onContactClick,
+  onLearnNowClick,
 }: LandingHeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [language, setLanguage] = useState<"en" | "bn">("en");
@@ -170,15 +175,23 @@ export function LandingHeader({
             ) : null}
           </div>
 
-          {user ? (
-            <Button size="sm" onClick={onDashboardClick}>
-              Dashboard
+          {/* CTA_HIDDEN — restore Login / Dashboard / Learn now when full platform launches */}
+          {!comingSoon ? (
+            user ? (
+              <Button size="sm" onClick={onDashboardClick}>
+                Dashboard
+              </Button>
+            ) : (
+              <Button size="sm" onClick={onAuthClick}>
+                Login
+              </Button>
+            )
+          ) : null}
+          {/* {comingSoon ? (
+            <Button size="sm" variant="secondary" onClick={onLearnNowClick}>
+              Learn now
             </Button>
-          ) : (
-            <Button size="sm" onClick={onAuthClick}>
-              Login
-            </Button>
-          )}
+          ) : ...} */}
         </div>
 
         <div className="ml-auto flex items-center gap-2 md:hidden">
@@ -190,15 +203,17 @@ export function LandingHeader({
           >
             {theme === "dark" ? <Sun className="h-4.5 w-4.5" /> : <MoonStar className="h-4.5 w-4.5" />}
           </button>
-          {user ? (
-            <Button size="sm" onClick={onDashboardClick}>
-              Dashboard
-            </Button>
-          ) : (
-            <Button size="sm" onClick={onAuthClick}>
-              Login
-            </Button>
-          )}
+          {!comingSoon ? (
+            user ? (
+              <Button size="sm" onClick={onDashboardClick}>
+                Dashboard
+              </Button>
+            ) : (
+              <Button size="sm" onClick={onAuthClick}>
+                Login
+              </Button>
+            )
+          ) : null}
         </div>
       </div>
 

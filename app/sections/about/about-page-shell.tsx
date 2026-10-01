@@ -21,9 +21,11 @@ import {
 } from "@/app/sections/about/about-data";
 import type { AuthUser } from "@/lib/mock-auth";
 import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
+import { isComingSoonMode } from "@/lib/coming-soon";
 
 export function AboutPageShell() {
   const router = useRouter();
+  const comingSoon = isComingSoonMode();
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const user = useSyncExternalStore<AuthUser | null>(
@@ -33,6 +35,10 @@ export function AboutPageShell() {
   );
 
   function handleBookSessionClick() {
+    if (comingSoon) {
+      router.push("/#learn-now");
+      return;
+    }
     if (user?.role === "student") {
       router.push("/dashboard/live-session-book");
       return;
@@ -40,16 +46,26 @@ export function AboutPageShell() {
     setIsAuthModalOpen(true);
   }
 
+  function scrollToLearnOnHome() {
+    router.push("/#learn-now");
+  }
+
   return (
     <div className="min-h-screen bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       <LandingHeader
         user={user}
+        comingSoon={comingSoon}
         onAuthClick={() => setIsAuthModalOpen(true)}
         onDashboardClick={() => router.push("/dashboard")}
         onContactClick={() => setIsContactModalOpen(true)}
+        onLearnNowClick={scrollToLearnOnHome}
       />
       <main>
-        <AboutHeroSection data={aboutHero} onPrimaryCtaClick={handleBookSessionClick} />
+        <AboutHeroSection
+          data={aboutHero}
+          onPrimaryCtaClick={handleBookSessionClick}
+          hideCtAs={comingSoon}
+        />
         <AboutMissionSection
           heading={mission.heading}
           description={mission.description}
@@ -65,7 +81,8 @@ export function AboutPageShell() {
         open={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
       />
-      {isAuthModalOpen ? (
+      {/* BACKEND_LIVE — auth modal */}
+      {!comingSoon && isAuthModalOpen ? (
         <AuthModal
           open={isAuthModalOpen}
           initialView="login"

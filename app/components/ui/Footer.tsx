@@ -19,6 +19,7 @@ import {
   policyPath,
 } from "@/data/policies";
 import { getAccessToken } from "@/lib/auth-store";
+import { getFacebookUrl, getYoutubeUrl, isExternalSocialUrl } from "@/lib/social-links";
 
 const footerLinks = {
   quickLinks: [
@@ -43,6 +44,8 @@ const footerLinks = {
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const facebookUrl = getFacebookUrl();
+  const youtubeUrl = getYoutubeUrl();
 
   const handleBackToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -85,10 +88,14 @@ export default function Footer() {
             Transform your career with our world-class courses and personalized mentoring.
           </p>
           <div className="flex items-center gap-3">
-            <Link href="#" className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]"><FacebookIcon className="h-5 w-5" /></Link>
+            {isExternalSocialUrl(facebookUrl) ? (
+              <Link href={facebookUrl} className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]" target="_blank" rel="noopener noreferrer"><FacebookIcon className="h-5 w-5" /></Link>
+            ) : null}
             <Link href="#" className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]"><TwitterXIcon className="h-5 w-5" /></Link>
             <Link href="#" className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]"><InstagramIcon className="h-5 w-5" /></Link>
-            <Link href="#" className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]"><YoutubeIcon className="h-5 w-5" /></Link>
+            {isExternalSocialUrl(youtubeUrl) ? (
+              <Link href={youtubeUrl} className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]" target="_blank" rel="noopener noreferrer"><YoutubeIcon className="h-5 w-5" /></Link>
+            ) : null}
             <Link href="#" className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]"><LinkedinIcon className="h-5 w-5" /></Link>
             <Link href="#" className="text-sky-500 transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:text-sky-400 hover:drop-shadow-[0_0_8px_rgba(14,165,233,0.45)]"><GoogleIcon className="h-5 w-5" /></Link>
           </div>

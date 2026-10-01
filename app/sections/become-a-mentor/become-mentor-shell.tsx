@@ -36,6 +36,7 @@ import { AuthModal } from "@/app/components/ui/auth-modal";
 import { ContactModal } from "@/app/components/ui/contact-modal";
 import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import type { AuthUser } from "@/lib/mock-auth";
+import { isComingSoonMode } from "@/lib/coming-soon";
 
 // ─────────────────────────────────────────────────────────────
 // Scroll-reveal hook
@@ -65,7 +66,7 @@ function useScrollReveal(threshold = 0.15) {
 // ─────────────────────────────────────────────────────────────
 // Section 1 — Hero
 // ─────────────────────────────────────────────────────────────
-function HeroSection({ onApply }: { onApply: () => void }) {
+function HeroSection({ onApply, hideCtAs = false }: { onApply: () => void; hideCtAs?: boolean }) {
   return (
     <section className="relative overflow-hidden bg-white py-16 transition-colors dark:bg-slate-950 sm:py-20 lg:py-24">
       {/* Subtle grid */}
@@ -112,17 +113,20 @@ function HeroSection({ onApply }: { onApply: () => void }) {
             required.
           </p>
 
-          <div className="flex flex-wrap gap-3">
-            <Button variant="primary" size="lg" iconRight={ArrowRight} onClick={onApply}>
-              Apply to be a Mentor
-            </Button>
-            <Link
-              href="#how-it-works"
-              className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-sky-600 dark:hover:text-sky-400"
-            >
-              See how it works
-            </Link>
-          </div>
+          {/* CTA_HIDDEN — mentor apply until full launch */}
+          {!hideCtAs ? (
+            <div className="flex flex-wrap gap-3">
+              <Button variant="primary" size="lg" iconRight={ArrowRight} onClick={onApply}>
+                Apply to be a Mentor
+              </Button>
+              <Link
+                href="#how-it-works"
+                className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-sky-600 dark:hover:text-sky-400"
+              >
+                See how it works
+              </Link>
+            </div>
+          ) : null}
 
           {/* Mini stat row */}
           <div className="flex flex-wrap gap-6 pt-2">
@@ -744,7 +748,7 @@ const expertiseOptions = [
   "Other",
 ];
 
-function ApplicationSection() {
+function ApplicationSection({ hideCtAs = false }: { hideCtAs?: boolean }) {
   const { ref, visible } = useScrollReveal();
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
@@ -798,9 +802,14 @@ function ApplicationSection() {
               </div>
             </div>
 
-            {/* Right — Form */}
+            {/* Right — Form (CTA_HIDDEN when coming soon) */}
             <div className="p-8 sm:p-10">
-              {submitted ? (
+              {hideCtAs ? (
+                <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                  Mentor applications will open when the platform launches. Follow us on social
+                  channels for updates.
+                </p>
+              ) : submitted ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 py-8 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
                     <BadgeCheck className="h-8 w-8 text-emerald-500" />
@@ -891,6 +900,7 @@ type AuthEntryView = "login" | "register" | "verify" | "forgot" | "reset";
 
 export function BecomeMentorShell() {
   const router = useRouter();
+  const comingSoon = isComingSoonMode();
   const [manualAuthView, setManualAuthView] = useState<AuthEntryView>("login");
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -923,27 +933,30 @@ export function BecomeMentorShell() {
       <div className="min-h-screen bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
         <LandingHeader
           user={user}
+          comingSoon={comingSoon}
           onAuthClick={() => {
             setManualAuthView("login");
             setManualModalOpen(true);
           }}
           onDashboardClick={() => router.push("/dashboard")}
           onContactClick={() => setIsContactModalOpen(true)}
+          onLearnNowClick={() => router.push("/#learn-now")}
         />
         <main>
-          <HeroSection onApply={scrollToForm} />
+          <HeroSection onApply={scrollToForm} hideCtAs={comingSoon} />
           <SuccessCycleSection />
           <SupportSuiteSection />
           <BrandingSpotlightSection />
           <EarningsCalculatorSection />
           <QualityStandardsSection />
           <TestimonialSection />
-          <ApplicationSection />
+          <ApplicationSection hideCtAs={comingSoon} />
         </main>
         <Footer />
       </div>
 
-      {isModalOpen ? (
+      {/* BACKEND_LIVE — auth modal */}
+      {!comingSoon && isModalOpen ? (
         <AuthModal
           key={authView}
           open={isModalOpen}

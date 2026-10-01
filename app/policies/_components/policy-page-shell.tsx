@@ -11,6 +11,7 @@ import { LandingHeader } from "@/app/sections/landing/landing-header";
 import type { PolicyDocument } from "@/data/policies/types";
 import type { AuthUser } from "@/lib/mock-auth";
 import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
+import { isComingSoonMode } from "@/lib/coming-soon";
 
 type PolicyPageShellProps = {
   doc: PolicyDocument;
@@ -21,14 +22,17 @@ export function PolicyPageShell({ doc, relatedPolicies }: PolicyPageShellProps) 
   const router = useRouter();
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
+  const comingSoon = isComingSoonMode();
 
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-50 via-white to-sky-50/40 text-slate-900 transition-colors dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100">
       <LandingHeader
         user={user}
+        comingSoon={comingSoon}
         onAuthClick={() => router.push("/?auth=login")}
         onDashboardClick={() => router.push("/dashboard")}
         onContactClick={() => setIsContactModalOpen(true)}
+        onLearnNowClick={() => router.push("/#learn-now")}
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">

@@ -13,9 +13,10 @@ type AboutHeroSectionProps = {
     secondaryCta: { label: string; href: string };
   };
   onPrimaryCtaClick?: () => void;
+  hideCtAs?: boolean;
 };
 
-export function AboutHeroSection({ data, onPrimaryCtaClick }: AboutHeroSectionProps) {
+export function AboutHeroSection({ data, onPrimaryCtaClick, hideCtAs = false }: AboutHeroSectionProps) {
   const gradientPhrase = "Ambition and Expertise";
   const leadTitle = data.title.replace(gradientPhrase, "").trim();
 
@@ -44,31 +45,34 @@ export function AboutHeroSection({ data, onPrimaryCtaClick }: AboutHeroSectionPr
           <p className="max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
             {data.description}
           </p>
-          <div className="flex flex-wrap items-center gap-3">
-            {onPrimaryCtaClick ? (
-              <button
-                type="button"
-                onClick={onPrimaryCtaClick}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
-              >
-                {data.primaryCta.label}
-              </button>
-            ) : (
+          {/* CTA_HIDDEN — Book a Session / secondary links until full launch */}
+          {!hideCtAs ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {onPrimaryCtaClick ? (
+                <button
+                  type="button"
+                  onClick={onPrimaryCtaClick}
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
+                >
+                  {data.primaryCta.label}
+                </button>
+              ) : (
+                <Link
+                  href={data.primaryCta.href}
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
+                >
+                  {data.primaryCta.label}
+                </Link>
+              )}
               <Link
-                href={data.primaryCta.href}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
+                href={data.secondaryCta.href}
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-300 bg-white px-5 py-3 text-sm font-semibold text-sky-700 shadow-[0_0_0_rgba(56,189,248,0)] transition hover:shadow-[0_0_24px_rgba(56,189,248,0.35)] dark:border-sky-700 dark:bg-slate-900 dark:text-sky-300"
               >
-                {data.primaryCta.label}
+                {data.secondaryCta.label}
+                <ArrowRight className="h-4 w-4" />
               </Link>
-            )}
-            <Link
-              href={data.secondaryCta.href}
-              className="inline-flex items-center gap-2 rounded-xl border border-sky-300 bg-white px-5 py-3 text-sm font-semibold text-sky-700 shadow-[0_0_0_rgba(56,189,248,0)] transition hover:shadow-[0_0_24px_rgba(56,189,248,0.35)] dark:border-sky-700 dark:bg-slate-900 dark:text-sky-300"
-            >
-              {data.secondaryCta.label}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+            </div>
+          ) : null}
         </motion.div>
 
         <motion.div

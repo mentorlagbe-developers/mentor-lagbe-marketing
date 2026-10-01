@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown, CircleHelp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const faqItems = [
+const baseFaqItems = [
   {
     question: "How long does the registration process take?",
     answer:
@@ -27,7 +27,14 @@ const faqItems = [
   },
 ];
 
-export function FaqSection() {
+const comingSoonFaq = {
+  question: "When can I book a one-to-one mentor session?",
+  answer:
+    "Live booked mentorship is coming soon. Until then, use our YouTube channel for recorded courses and Facebook for free live sessions and course announcements—no account required.",
+};
+
+export function FaqSection({ comingSoon = false }: { comingSoon?: boolean }) {
+  const faqItems = comingSoon ? [comingSoonFaq, ...baseFaqItems] : baseFaqItems;
   const [openIndex, setOpenIndex] = useState(0);
 
   return (

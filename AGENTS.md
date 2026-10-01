@@ -1,5 +1,9 @@
 # Mentor Lagbe Frontend — Agent Guide
 
+## Coming-soon / Vercel-only mode
+
+When `NEXT_PUBLIC_COMING_SOON=true` and `COMING_SOON=true`, the frontend does not call the API or open Socket.IO; dashboard routes redirect home. See [`docs/COMING_SOON_VERCEL_LAUNCH.md`](docs/COMING_SOON_VERCEL_LAUNCH.md).
+
 ## Stack
 
 - **Next.js** (App Router), **TypeScript**, **Tailwind CSS**

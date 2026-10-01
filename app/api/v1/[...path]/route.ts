@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function isComingSoon(): boolean {
+  return (
+    process.env.COMING_SOON === "true" ||
+    process.env.NEXT_PUBLIC_COMING_SOON === "true"
+  );
+}
+
 /** Prefer 127.0.0.1 — avoids Node fetch "fetch failed" on some macOS IPv6 localhost setups. */
 const BACKEND_API_BASE =
   process.env.BACKEND_API_URL ?? "http://127.0.0.1:3000/api/v1";
@@ -32,7 +39,16 @@ function isBackendUnreachable(cause: string): boolean {
   );
 }
 
+// BACKEND_LIVE — forwards browser /api/v1/* to Nest (not used when COMING_SOON=true)
 async function proxy(request: NextRequest, pathSegments: string[]) {
+  if (isComingSoon()) {
+    return errorEnvelope(
+      503,
+      "API proxy disabled while Mentor Lagbe is in coming-soon mode.",
+      "COMING_SOON"
+    );
+  }
+
   const backendUrl = buildBackendUrl(pathSegments, request.nextUrl.search);
   const headers = new Headers(request.headers);
   headers.delete("host");
