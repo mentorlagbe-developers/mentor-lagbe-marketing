@@ -20,10 +20,11 @@ export type TeamMember = {
   id: string;
   name: string;
   role: string;
-  bio: string;
   imageLabel: string;
+  /** Public path under /public, e.g. /about/raiyan.png */
+  imageSrc?: string;
   linkedinUrl: string;
-  xUrl: string;
+  facebookUrl: string;
 };
 
 export type GrowthMetric = {
@@ -86,69 +87,32 @@ export const coreValues: AboutValue[] = [
   },
 ];
 
-export const journeyMilestones: JourneyMilestone[] = [
-  {
-    id: "mvp",
-    year: "2023",
-    title: "MVP Launch",
-    description: "Started with a small cohort of students solving course blockers through live calls.",
-  },
-  {
-    id: "network",
-    year: "2024",
-    title: "Mentor Network Expansion",
-    description: "Scaled to multiple departments and universities with verified mentor onboarding.",
-  },
-  {
-    id: "platform",
-    year: "2025",
-    title: "Platform Evolution",
-    description: "Built robust booking, profile, and session workflows for a reliable learning experience.",
-  },
-  {
-    id: "today",
-    year: "Today",
-    title: "Nationwide Mentorship Movement",
-    description: "Empowering thousands of learners with focused 1:1 sessions and practical guidance.",
-  },
-];
-
 export const teamMembers: TeamMember[] = [
   {
-    id: "tm-01",
-    name: "Rafid Hasan",
-    role: "Founder & Product Lead",
-    bio: "Leads product vision with a focus on meaningful student outcomes.",
-    imageLabel: "RH",
-    linkedinUrl: "#",
-    xUrl: "#",
+    id: "tm-raiyan",
+    name: "Mohammad Raiyan Al Sultan",
+    role: "Co-Founder & CTO",
+    imageLabel: "MR",
+    imageSrc: "/about/raiyan.png",
+    linkedinUrl: "https://www.linkedin.com/in/raiyan-al-sultan",
+    facebookUrl: "https://www.facebook.com/md.raiyan.al.sultan",
   },
   {
-    id: "tm-02",
-    name: "Nusrat Jahan",
-    role: "Head of Mentor Success",
-    bio: "Builds mentor quality systems and learning excellence programs.",
-    imageLabel: "NJ",
-    linkedinUrl: "#",
-    xUrl: "#",
+    id: "tm-nayeem",
+    name: "Mahadi Hasan Nayeem",
+    role: "Co-Founder & CMM",
+    imageLabel: "MH",
+    imageSrc: "/about/nayeem.jpeg",
+    linkedinUrl: "https://www.linkedin.com/in/mahadihasannayeem/",
+    facebookUrl: "https://www.facebook.com/profile.php?id=61584452465137",
   },
   {
-    id: "tm-03",
-    name: "Tawsif Rahman",
-    role: "Engineering Manager",
-    bio: "Drives platform reliability, speed, and seamless user experience.",
-    imageLabel: "TR",
+    id: "tm-sudeep",
+    name: "Sudeep Mondal",
+    role: "Co-Founder & CFO",
+    imageLabel: "SM",
     linkedinUrl: "#",
-    xUrl: "#",
-  },
-  {
-    id: "tm-04",
-    name: "Sadia Akter",
-    role: "Community Growth Lead",
-    bio: "Partners with campuses and student communities to expand impact.",
-    imageLabel: "SA",
-    linkedinUrl: "#",
-    xUrl: "#",
+    facebookUrl: "#",
   },
 ];
 

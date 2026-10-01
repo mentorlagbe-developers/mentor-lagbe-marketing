@@ -15,6 +15,11 @@ import { NotificationsProvider } from "@/lib/notifications-context";
 
 type DashboardShellProps = { children: React.ReactNode };
 
+function isMobileViewport() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(max-width: 1023px)").matches;
+}
+
 export function DashboardShell({ children }: DashboardShellProps) {
   const router = useRouter();
   const { isHydrating } = useAuth();
@@ -26,6 +31,34 @@ export function DashboardShell({ children }: DashboardShellProps) {
     }
   }, [isHydrating, router, user]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMobileNavOpen]);
+
+  useEffect(() => {
+    const onResize = () => {
+      if (!isMobileViewport()) {
+        setIsMobileNavOpen(false);
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  function handleToggleSidebar() {
+    if (isMobileViewport()) {
+      setIsMobileNavOpen((open) => !open);
+      return;
+    }
+    setIsSidebarCollapsed((state) => !state);
+  }
 
   if (isHydrating || !user) {
     return <div className="p-6 text-sm text-slate-500">Loading dashboard...</div>;
@@ -33,19 +66,32 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   return (
     <NotificationsProvider role={activeRole}>
-      <div className="flex min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-        <DashboardSidebar role={activeRole} collapsed={isSidebarCollapsed} />
+      <div className="flex min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+        {isMobileNavOpen ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm lg:hidden"
+            aria-label="Close navigation"
+            onClick={() => setIsMobileNavOpen(false)}
+          />
+        ) : null}
+        <DashboardSidebar
+          role={activeRole}
+          collapsed={isSidebarCollapsed}
+          mobileOpen={isMobileNavOpen}
+          onNavigate={() => setIsMobileNavOpen(false)}
+        />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <ProfileStatusProvider role={activeRole}>
             <DashboardHeader
               role={activeRole}
               user={user}
               collapsed={isSidebarCollapsed}
-              onToggleSidebar={() => setIsSidebarCollapsed((state) => !state)}
+              onToggleSidebar={handleToggleSidebar}
               onLogout={() => router.push("/?auth=login")}
             />
             <ProfileCompletionBanner />
-            <main className="flex-1 p-6">{children}</main>
+            <main className="flex-1 p-4 sm:p-6">{children}</main>
             <DashboardFooter />
           </ProfileStatusProvider>
         </div>

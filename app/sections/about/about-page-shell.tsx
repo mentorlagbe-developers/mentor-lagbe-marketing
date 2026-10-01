@@ -10,15 +10,7 @@ import { AboutHeroSection } from "@/app/sections/about/about-hero-section";
 import { AboutMissionSection } from "@/app/sections/about/about-mission-section";
 import { AboutTimelineSection } from "@/app/sections/about/about-timeline-section";
 import { AboutTeamSection } from "@/app/sections/about/about-team-section";
-import { AboutGrowthMetricsSection } from "@/app/sections/about/about-growth-metrics-section";
-import {
-  aboutHero,
-  coreValues,
-  growthMetrics,
-  journeyMilestones,
-  mission,
-  teamMembers,
-} from "@/app/sections/about/about-data";
+import { teamMembers } from "@/app/sections/about/about-data";
 import type { AuthUser } from "@/lib/mock-auth";
 import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import { isComingSoonMode } from "@/lib/coming-soon";
@@ -60,28 +52,17 @@ export function AboutPageShell() {
         onContactClick={() => setIsContactModalOpen(true)}
         onLearnNowClick={scrollToLearnOnHome}
       />
-      <main>
-        <AboutHeroSection
-          data={aboutHero}
-          onPrimaryCtaClick={handleBookSessionClick}
-          hideCtAs={comingSoon}
-        />
-        <AboutMissionSection
-          heading={mission.heading}
-          description={mission.description}
-          imageCaption={mission.imageCaption}
-          values={coreValues}
-        />
-        <AboutTimelineSection milestones={journeyMilestones} />
+      <main className="overflow-x-hidden">
+        <AboutHeroSection onPrimaryCtaClick={handleBookSessionClick} hideCtAs={comingSoon} />
+        <AboutMissionSection />
+        <AboutTimelineSection />
         <AboutTeamSection members={teamMembers} />
-        <AboutGrowthMetricsSection metrics={growthMetrics} />
       </main>
       <Footer />
       <ContactModal
         open={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
       />
-      {/* BACKEND_LIVE — auth modal */}
       {!comingSoon && isAuthModalOpen ? (
         <AuthModal
           open={isAuthModalOpen}

@@ -3,22 +3,15 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useT } from "@/lib/locale/locale-provider";
 
 type AboutHeroSectionProps = {
-  data: {
-    badge: string;
-    title: string;
-    description: string;
-    primaryCta: { label: string; href: string };
-    secondaryCta: { label: string; href: string };
-  };
   onPrimaryCtaClick?: () => void;
   hideCtAs?: boolean;
 };
 
-export function AboutHeroSection({ data, onPrimaryCtaClick, hideCtAs = false }: AboutHeroSectionProps) {
-  const gradientPhrase = "Ambition and Expertise";
-  const leadTitle = data.title.replace(gradientPhrase, "").trim();
+export function AboutHeroSection({ onPrimaryCtaClick, hideCtAs = false }: AboutHeroSectionProps) {
+  const t = useT();
 
   return (
     <section className="relative overflow-hidden border-b border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-950 sm:py-20">
@@ -34,18 +27,17 @@ export function AboutHeroSection({ data, onPrimaryCtaClick, hideCtAs = false }: 
         >
           <span className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-sky-700 dark:border-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
             <Sparkles className="h-3.5 w-3.5" />
-            {data.badge}
+            {t("about.hero.badge")}
           </span>
           <h1 className="text-4xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white sm:text-5xl">
-            {leadTitle}{" "}
+            {t("about.hero.titleLead")}{" "}
             <span className="bg-linear-to-r from-indigo-600 via-sky-500 to-cyan-500 bg-clip-text text-transparent">
-              {gradientPhrase}
+              {t("about.hero.titleHighlight")}
             </span>
           </h1>
           <p className="max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
-            {data.description}
+            {t("about.hero.description")}
           </p>
-          {/* CTA_HIDDEN — Book a Session / secondary links until full launch */}
           {!hideCtAs ? (
             <div className="flex flex-wrap items-center gap-3">
               {onPrimaryCtaClick ? (
@@ -54,21 +46,21 @@ export function AboutHeroSection({ data, onPrimaryCtaClick, hideCtAs = false }: 
                   onClick={onPrimaryCtaClick}
                   className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
                 >
-                  {data.primaryCta.label}
+                  {t("about.hero.ctaPrimary")}
                 </button>
               ) : (
                 <Link
-                  href={data.primaryCta.href}
+                  href="/?auth=register"
                   className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
                 >
-                  {data.primaryCta.label}
+                  {t("about.hero.ctaPrimary")}
                 </Link>
               )}
               <Link
-                href={data.secondaryCta.href}
+                href="/dashboard?section=mentors"
                 className="inline-flex items-center gap-2 rounded-xl border border-sky-300 bg-white px-5 py-3 text-sm font-semibold text-sky-700 shadow-[0_0_0_rgba(56,189,248,0)] transition hover:shadow-[0_0_24px_rgba(56,189,248,0.35)] dark:border-sky-700 dark:bg-slate-900 dark:text-sky-300"
               >
-                {data.secondaryCta.label}
+                {t("about.hero.ctaSecondary")}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -87,13 +79,13 @@ export function AboutHeroSection({ data, onPrimaryCtaClick, hideCtAs = false }: 
           <div className="relative grid w-full gap-3 text-center">
             <div className="mx-auto h-3 w-3 rounded-full bg-sky-500" />
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">
-              Mentor <span className="text-slate-400">x</span> Student
+              {t("about.hero.visualTag")}
             </p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Connected Learning Graph
+              {t("about.hero.visualTitle")}
             </p>
             <p className="mx-auto max-w-sm text-sm text-slate-600 dark:text-slate-300">
-              Real-time guidance links every learner with the right mentor, right topic, and right timing.
+              {t("about.hero.visualDesc")}
             </p>
           </div>
         </motion.div>

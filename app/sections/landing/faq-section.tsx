@@ -1,40 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown, CircleHelp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/locale/locale-provider";
+import type { MessageKey } from "@/lib/locale/messages";
 
-const baseFaqItems = [
-  {
-    question: "How long does the registration process take?",
-    answer:
-      "Most learners complete registration in under five minutes. Identity checks and account activation are typically fast.",
-  },
-  {
-    question: "Is my data safe and compliant?",
-    answer:
-      "Yes. We use secure API communication, access controls, and privacy-first account handling across onboarding and dashboard actions.",
-  },
-  {
-    question: "Can I choose mentors based on my course?",
-    answer:
-      "Absolutely. You can select department, course, topic, and then book sessions with mentors who match your learning goals.",
-  },
-  {
-    question: "What happens if I miss a session?",
-    answer:
-      "You can review your session status from the dashboard. For schedule conflicts, update early and follow the platform session policy.",
-  },
+type FaqItem = { q: MessageKey; a: MessageKey };
+
+const baseFaqKeys: FaqItem[] = [
+  { q: "faq.q1", a: "faq.a1" },
+  { q: "faq.q2", a: "faq.a2" },
+  { q: "faq.q3", a: "faq.a3" },
+  { q: "faq.q4", a: "faq.a4" },
 ];
 
-const comingSoonFaq = {
-  question: "When can I book a one-to-one mentor session?",
-  answer:
-    "Live booked mentorship is coming soon. Until then, use our YouTube channel for recorded courses and Facebook for free live sessions and course announcements—no account required.",
-};
+const comingSoonFaq: FaqItem = { q: "faq.comingSoonQ", a: "faq.comingSoonA" };
 
 export function FaqSection({ comingSoon = false }: { comingSoon?: boolean }) {
-  const faqItems = comingSoon ? [comingSoonFaq, ...baseFaqItems] : baseFaqItems;
+  const t = useT();
+  const faqItems = useMemo(
+    () => (comingSoon ? [comingSoonFaq, ...baseFaqKeys] : baseFaqKeys),
+    [comingSoon]
+  );
   const [openIndex, setOpenIndex] = useState(0);
 
   return (
@@ -43,23 +31,23 @@ export function FaqSection({ comingSoon = false }: { comingSoon?: boolean }) {
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-1.5 text-xs font-semibold text-sky-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-sky-300">
             <CircleHelp className="h-3.5 w-3.5 text-blue-500" />
-            FAQ
+            {t("faq.badge")}
           </div>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-5xl">
-            Questions, answered <span className="text-blue-500">with care.</span>
+            {t("faq.heading")}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-500 dark:text-slate-300 sm:text-base">
-            Everything you need to know before getting started. Can&apos;t find what you&apos;re looking for?
-            Our team is one message away.
+            {t("faq.sub")}
           </p>
         </div>
 
         <div className="mx-auto mt-8 max-w-3xl space-y-4">
           {faqItems.map((item, index) => {
             const isOpen = openIndex === index;
+            const question = t(item.q);
             return (
               <article
-                key={item.question}
+                key={item.q}
                 className={cn(
                   "overflow-hidden rounded-3xl border border-slate-200 bg-white transition-all duration-300 dark:border-slate-700 dark:bg-slate-800",
                   "hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-[0_16px_40px_-24px_rgba(14,116,144,0.45)]",
@@ -71,7 +59,9 @@ export function FaqSection({ comingSoon = false }: { comingSoon?: boolean }) {
                   className="flex w-full items-center justify-between px-6 py-5 text-left sm:px-8"
                   onClick={() => setOpenIndex(isOpen ? -1 : index)}
                 >
-                  <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">{item.question}</span>
+                  <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    {question}
+                  </span>
                   <ChevronDown
                     className={cn(
                       "h-5 w-5 shrink-0 text-slate-500 transition-transform duration-300 dark:text-slate-300",
@@ -82,7 +72,9 @@ export function FaqSection({ comingSoon = false }: { comingSoon?: boolean }) {
 
                 {isOpen ? (
                   <div className="border-t border-slate-100 px-6 pb-6 pt-4 dark:border-slate-700 sm:px-8">
-                    <p className="text-sm leading-7 text-slate-600 dark:text-slate-300 sm:text-base">{item.answer}</p>
+                    <p className="text-sm leading-7 text-slate-600 dark:text-slate-300 sm:text-base">
+                      {t(item.a)}
+                    </p>
                   </div>
                 ) : null}
               </article>
@@ -93,4 +85,3 @@ export function FaqSection({ comingSoon = false }: { comingSoon?: boolean }) {
     </section>
   );
 }
-

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Blocks, BrainCircuit, Code2, Cpu, Globe, Shield } from "lucide-react";
-
+import { useT } from "@/lib/locale/locale-provider";
 export type TopicCard = {
   title: string;
   description: string;
@@ -17,49 +17,57 @@ type TopicExpertGridSectionProps = {
   topics?: TopicCard[];
 };
 
-const defaultTopics: TopicCard[] = [
-  {
-    title: "Next.js",
-    description: "App Router, rendering strategy, and production architecture.",
-    icon: Code2,
-    isFeatured: true,
-  },
-  {
-    title: "System Design",
-    description: "Scalable APIs, caching, reliability, and real-world tradeoffs.",
-    icon: Blocks,
-    isFeatured: true,
-  },
-  {
-    title: "Cybersecurity",
-    description: "Secure coding, auth hardening, and practical threat modeling.",
-    icon: Shield,
-    isFeatured: true,
-  },
-  {
-    title: "JavaScript Core",
-    description: "Closures, event loop, async flows, and modern patterns.",
-    icon: Cpu,
-  },
-  {
-    title: "Data Structures",
-    description: "Interview-focused DSA with problem solving frameworks.",
-    icon: BrainCircuit,
-  },
-  {
-    title: "Web Fundamentals",
-    description: "Performance, accessibility, and frontend best practices.",
-    icon: Globe,
-  },
-];
-
 export function TopicExpertGridSection({
-  heading = "Topic-Wise Expert Grid",
-  subtitle = "Pick a category and connect with mentors who specialize in exactly that domain.",
-  topics = defaultTopics,
+  heading,
+  subtitle,
+  topics,
 }: TopicExpertGridSectionProps) {
+  const t = useT();
   const sectionRef = useRef<HTMLElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+
+  const defaultTopics = useMemo<TopicCard[]>(
+    () => [
+      {
+        title: "Next.js",
+        description: t("topics.nextjsDesc"),
+        icon: Code2,
+        isFeatured: true,
+      },
+      {
+        title: "System Design",
+        description: t("topics.systemDesignDesc"),
+        icon: Blocks,
+        isFeatured: true,
+      },
+      {
+        title: "Cybersecurity",
+        description: t("topics.cyberDesc"),
+        icon: Shield,
+        isFeatured: true,
+      },
+      {
+        title: "JavaScript Core",
+        description: t("topics.jsDesc"),
+        icon: Cpu,
+      },
+      {
+        title: "Data Structures",
+        description: t("topics.dsaDesc"),
+        icon: BrainCircuit,
+      },
+      {
+        title: "Web Fundamentals",
+        description: t("topics.webDesc"),
+        icon: Globe,
+      },
+    ],
+    [t]
+  );
+
+  const resolvedTopics = topics ?? defaultTopics;
+  const resolvedHeading = heading ?? t("topics.gridHeading");
+  const resolvedSubtitle = subtitle ?? t("topics.gridSub");
 
   useEffect(() => {
     if (!sectionRef.current) {
@@ -84,13 +92,13 @@ export function TopicExpertGridSection({
     <section ref={sectionRef} className="bg-slate-100 py-12 transition-colors dark:bg-slate-900 sm:py-14">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className={`mx-auto max-w-3xl text-center scroll-reveal ${isVisible ? "is-visible" : ""}`}>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-500">Expert Categories</p>
-          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">{heading}</h2>
-          <p className="mt-3 text-base text-slate-600 dark:text-slate-300 sm:text-lg">{subtitle}</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-500">{t("topics.eyebrow")}</p>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">{resolvedHeading}</h2>
+          <p className="mt-3 text-base text-slate-600 dark:text-slate-300 sm:text-lg">{resolvedSubtitle}</p>
         </div>
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {topics.map((topic, index) => {
+          {resolvedTopics.map((topic, index) => {
             const Icon = topic.icon;
             return (
               <article

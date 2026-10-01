@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, CalendarPlus2, ChevronDown, Globe, Lock, LogOut, Menu, MoonStar, Settings, Star, Sun, TrendingUp, UserCircle2 } from "lucide-react";
+import { Bell, CalendarPlus2, ChevronDown, Lock, LogOut, Menu, MoonStar, Settings, Star, Sun, TrendingUp, UserCircle2 } from "lucide-react";
+import { LanguageSwitcher } from "@/app/components/ui/language-switcher";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NotificationDropdown } from "@/app/dashboard/_components/notification-dropdown";
@@ -110,11 +111,6 @@ type DashboardHeaderProps = {
   onLogout: () => void;
 };
 
-const languages = [
-  { id: "en", label: "English", icon: "🇬🇧" },
-  { id: "bn", label: "Bangla", icon: "🇧🇩" },
-] as const;
-
 const avatarPalette = [
   "from-sky-500 to-blue-600",
   "from-violet-500 to-fuchsia-600",
@@ -154,18 +150,15 @@ export function DashboardHeader({
     const query = new URLSearchParams(window.location.search);
     return query.get("role");
   });
-  const [language, setLanguage] = useState<(typeof languages)[number]["id"]>("en");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") {
       return "light";
     }
     return window.localStorage.getItem("mentorlagbe-theme") === "dark" ? "dark" : "light";
   });
-  const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const languageRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
@@ -209,9 +202,6 @@ export function DashboardHeader({
   useEffect(() => {
     const onWindowClick = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (languageRef.current && !languageRef.current.contains(target)) {
-        setIsLanguageOpen(false);
-      }
       if (profileRef.current && !profileRef.current.contains(target)) {
         setIsProfileOpen(false);
       }
@@ -237,8 +227,8 @@ export function DashboardHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-15 items-center justify-between border-b border-white/40 bg-white/35 px-5 shadow-[0_18px_32px_-24px_rgba(15,23,42,0.65),0_2px_10px_-6px_rgba(30,64,175,0.4)] backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/30 dark:shadow-[0_18px_30px_-22px_rgba(2,6,23,0.9)]">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-20 flex h-15 min-w-0 items-center justify-between gap-2 border-b border-white/40 bg-white/35 px-3 shadow-[0_18px_32px_-24px_rgba(15,23,42,0.65),0_2px_10px_-6px_rgba(30,64,175,0.4)] backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/30 dark:shadow-[0_18px_30px_-22px_rgba(2,6,23,0.9)] sm:gap-3 sm:px-5">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -247,11 +237,11 @@ export function DashboardHeader({
           >
             <Menu className="h-4.5 w-4.5" />
           </button>
-          <div className="leading-tight">
-            <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <div className="min-w-0 leading-tight">
+            <h1 className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
               Welcome {userName}
             </h1>
-            <div className="mt-0.5 flex flex-wrap items-center gap-3">
+            <div className="mt-0.5 hidden flex-wrap items-center gap-3 sm:flex">
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Role: {role}
               </p>
@@ -268,17 +258,28 @@ export function DashboardHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {role !== "teacher" && (
-            <Button
-              size="sm"
-              iconLeft={CalendarPlus2}
-              disabled={needsCompletionForLiveSession}
-              onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
-              className="disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Book Live Session
-            </Button>
+            <>
+              <Button
+                size="sm"
+                iconLeft={CalendarPlus2}
+                disabled={needsCompletionForLiveSession}
+                onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
+                className="hidden disabled:cursor-not-allowed disabled:opacity-60 sm:inline-flex"
+              >
+                Book Live Session
+              </Button>
+              <button
+                type="button"
+                disabled={needsCompletionForLiveSession}
+                onClick={() => router.push(withRoleQuery("/dashboard/live-session-book"))}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 sm:hidden"
+                aria-label="Book live session"
+              >
+                <CalendarPlus2 className="h-4 w-4" />
+              </button>
+            </>
           )}
 
           <button
@@ -290,39 +291,7 @@ export function DashboardHeader({
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <MoonStar className="h-5 w-5" />}
           </button>
 
-          <div className="relative" ref={languageRef}>
-            <button
-              type="button"
-              onClick={() => setIsLanguageOpen((state) => !state)}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600 transition hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              <Globe className="h-4 w-4 text-slate-500 dark:text-slate-300" />
-              <span>{language.toUpperCase()}</span>
-              <ChevronDown className={`h-4 w-4 transition ${isLanguageOpen ? "rotate-180" : ""}`} />
-            </button>
-            {isLanguageOpen ? (
-              <div className="absolute right-0 mt-2 w-40 rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                {languages.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setLanguage(item.id);
-                      setIsLanguageOpen(false);
-                    }}
-                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-                      language === item.id
-                        ? "bg-sky-50 text-sky-600 dark:bg-slate-700 dark:text-sky-300"
-                        : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
-                    }`}
-                  >
-                    <span>{item.icon}</span>
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <LanguageSwitcher compact />
 
           <div className="relative" ref={notificationRef}>
             <button

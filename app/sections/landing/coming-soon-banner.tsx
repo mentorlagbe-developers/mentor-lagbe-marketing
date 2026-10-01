@@ -1,18 +1,20 @@
 "use client";
 
+import { useT } from "@/lib/locale/locale-provider";
+
 export function ComingSoonBanner() {
+  const t = useT();
+
   return (
     <div
       role="status"
       aria-live="polite"
-      className="border-b border-sky-700/40 bg-linear-to-r from-sky-600 via-sky-500 to-cyan-600 px-4 py-3.5 text-center shadow-md shadow-sky-900/20 sm:py-4"
+      className="border-b border-sky-700/40 bg-linear-to-r from-sky-600 via-sky-500 to-cyan-600 px-4 py-3 text-center shadow-md shadow-sky-900/20 sm:px-5 sm:py-3.5"
     >
-      <p className="mx-auto max-w-4xl text-sm font-medium leading-relaxed text-white sm:text-base">
-        <span className="font-bold tracking-tight">One-to-one live mentorship is coming soon.</span>
-        <span className="hidden sm:inline"> — </span>
-        <span className="mt-0.5 block sm:mt-0 sm:inline">
-          Until launch, follow us on YouTube and Facebook for free courses and live sessions.
-        </span>
+      <p className="mx-auto inline-block max-w-full px-1 text-xs font-medium leading-snug text-white sm:text-sm lg:whitespace-nowrap lg:text-[0.9375rem]">
+        <span className="font-bold tracking-tight">{t("banner.title")}</span>
+        <span aria-hidden="true"> — </span>
+        <span>{t("banner.body")}</span>
       </p>
     </div>
   );

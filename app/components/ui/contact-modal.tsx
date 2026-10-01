@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SITE_CONTACT } from "@/lib/site-contact";
+import { useT } from "@/lib/locale/locale-provider";
 
 type ContactModalProps = {
   open: boolean;
@@ -34,6 +36,7 @@ function isValidPhone(phone: string) {
 }
 
 export function ContactModal({ open, onClose }: ContactModalProps) {
+  const t = useT();
   const [form, setForm] = useState<ContactFormState>(initialState);
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormState, string>>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -76,19 +79,19 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
     const nextErrors: Partial<Record<keyof ContactFormState, string>> = {};
 
     if (!form.name.trim() || form.name.trim().length < 3) {
-      nextErrors.name = "Enter a valid name (min 3 chars).";
+      nextErrors.name = t("contact.errorName");
     }
 
     if (!form.email.trim() || !isValidEmail(form.email)) {
-      nextErrors.email = "Enter a valid email address.";
+      nextErrors.email = t("contact.errorEmail");
     }
 
     if (!form.phone.trim() || !isValidPhone(form.phone)) {
-      nextErrors.phone = "Enter a valid phone number.";
+      nextErrors.phone = t("contact.errorPhone");
     }
 
     if (!form.description.trim() || form.description.trim().length < 12) {
-      nextErrors.description = "Description should be at least 12 characters.";
+      nextErrors.description = t("contact.errorDescription");
     }
 
     setErrors(nextErrors);
@@ -97,6 +100,11 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
       return;
     }
 
+    const subject = encodeURIComponent(`${t("contact.mailSubject")} — ${form.name.trim()}`);
+    const body = encodeURIComponent(
+      `Name: ${form.name.trim()}\nEmail: ${form.email.trim()}\nPhone: ${form.phone.trim()}\n\n${form.description.trim()}`
+    );
+    window.location.href = `${SITE_CONTACT.emailHref}?subject=${subject}&body=${body}`;
     setIsSubmitted(true);
   }
 
@@ -108,7 +116,7 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
     <div className="modal-overlay-animate fixed inset-0 z-60 flex items-center justify-center bg-black/45 px-4 py-5 backdrop-blur-md">
       <button
         type="button"
-        aria-label="Close contact modal overlay"
+        aria-label={t("contact.closeOverlay")}
         className="absolute inset-0"
         onClick={closeWithReset}
       />
@@ -121,7 +129,7 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
           type="button"
           onClick={closeWithReset}
           className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 transition hover:text-slate-800"
-          aria-label="Close contact modal"
+          aria-label={t("contact.close")}
         >
           <X className="h-4 w-4" />
         </button>
@@ -132,7 +140,7 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
             <div className="relative flex h-full items-center justify-center p-8">
               <Image
                 src="/images/live-img.svg"
-                alt="Contact support illustration"
+                alt={t("contact.imageAlt")}
                 width={450}
                 height={380}
                 className="h-auto w-full max-w-md object-contain"
@@ -144,19 +152,29 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
             {!isSubmitted ? (
               <form className="space-y-3.5" onSubmit={handleSubmit}>
                 <div className="space-y-1">
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">Contact <span className="text-sky-500">Mentor Lagbe</span></h2>
-                  <p className="text-sm text-slate-500">
-                    Share your details and our support team will contact you soon.
+                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                    {t("contact.title")}{" "}
+                    <span className="text-sky-500">{t("contact.titleHighlight")}</span>
+                  </h2>
+                  <p className="text-sm text-slate-500">{t("contact.intro")}</p>
+                  <p className="text-sm text-slate-600">
+                    {t("contact.emailDirect")}{" "}
+                    <a
+                      href={SITE_CONTACT.emailHref}
+                      className="font-medium text-sky-600 underline-offset-2 hover:underline"
+                    >
+                      {SITE_CONTACT.email}
+                    </a>
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
                   <label htmlFor="contact-name" className="text-sm font-medium text-slate-700">
-                    Name
+                    {t("contact.labelName")}
                   </label>
                   <input
                     id="contact-name"
-                    placeholder="Enter your full name"
+                    placeholder={t("contact.placeholderName")}
                     value={form.name}
                     onChange={(event) => setForm((curr) => ({ ...curr, name: event.target.value }))}
                     className={cn(
@@ -170,12 +188,12 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <label htmlFor="contact-email" className="text-sm font-medium text-slate-700">
-                      Email
+                      {t("contact.labelEmail")}
                     </label>
                     <input
                       id="contact-email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t("contact.placeholderEmail")}
                       value={form.email}
                       onChange={(event) => setForm((curr) => ({ ...curr, email: event.target.value }))}
                       className={cn(
@@ -188,12 +206,12 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
 
                   <div className="space-y-1.5">
                     <label htmlFor="contact-phone" className="text-sm font-medium text-slate-700">
-                      Phone number
+                      {t("contact.labelPhone")}
                     </label>
                     <input
                       id="contact-phone"
                       type="tel"
-                      placeholder="01XXXXXXXXX"
+                      placeholder={t("contact.placeholderPhone")}
                       value={form.phone}
                       onChange={(event) => setForm((curr) => ({ ...curr, phone: event.target.value }))}
                       className={cn(
@@ -207,12 +225,12 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
 
                 <div className="space-y-1.5">
                   <label htmlFor="contact-description" className="text-sm font-medium text-slate-700">
-                    Reason for contact
+                    {t("contact.labelMessage")}
                   </label>
                   <textarea
                     id="contact-description"
                     rows={4}
-                    placeholder="Write your message..."
+                    placeholder={t("contact.placeholderMessage")}
                     value={form.description}
                     onChange={(event) => setForm((curr) => ({ ...curr, description: event.target.value }))}
                     className={cn(
@@ -227,21 +245,21 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
                   type="submit"
                   className="h-11 w-full rounded-xl bg-linear-to-r from-blue-500 to-sky-400 text-sm font-semibold text-white shadow-[0_12px_30px_-14px_rgba(249,115,22,0.55)] transition hover:brightness-105"
                 >
-                  Send mail
+                  {t("contact.submit")}
                 </button>
               </form>
             ) : (
               <div className="space-y-4 text-center">
-                <h3 className="text-2xl font-semibold text-slate-900">Thanks for contacting us!</h3>
+                <h3 className="text-2xl font-semibold text-slate-900">{t("contact.successTitle")}</h3>
                 <p className="text-sm text-slate-600">
-                  We received your message and will get back to you soon.
+                  {t("contact.successBody")} {SITE_CONTACT.email}.
                 </p>
                 <button
                   type="button"
                   onClick={closeWithReset}
                   className="h-11 w-full rounded-xl bg-linear-to-r from-orange-500 to-amber-400 text-sm font-semibold text-white"
                 >
-                  Close
+                  {t("contact.closeButton")}
                 </button>
               </div>
             )}

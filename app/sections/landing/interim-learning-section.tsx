@@ -8,32 +8,41 @@ import {
   getYoutubeUrl,
   isExternalSocialUrl,
 } from "@/lib/social-links";
+import { useT } from "@/lib/locale/locale-provider";
+import type { MessageKey } from "@/lib/locale/messages";
 
-const cards = [
+const cardMeta: Array<{
+  icon: typeof PlayCircle;
+  titleKey: MessageKey;
+  descKey: MessageKey;
+  ctaKey: MessageKey;
+  getHref: () => string;
+}> = [
   {
     icon: PlayCircle,
-    title: "Recorded courses",
-    description: "Watch topic-based lessons on our YouTube channel at your own pace.",
+    titleKey: "interim.card1Title",
+    descKey: "interim.card1Desc",
+    ctaKey: "interim.card1Cta",
     getHref: getYoutubeUrl,
-    cta: "Watch on YouTube",
   },
   {
     icon: Users,
-    title: "Free live sessions",
-    description: "Join free Q&A and multi-topic lives on Facebook—ask questions in real time.",
+    titleKey: "interim.card2Title",
+    descKey: "interim.card2Desc",
+    ctaKey: "interim.card2Cta",
     getHref: getFacebookUrl,
-    cta: "Follow on Facebook",
   },
   {
     icon: Radio,
-    title: "Live courses",
-    description: "Structured live batches and workshops announced on Facebook and YouTube.",
+    titleKey: "interim.card3Title",
+    descKey: "interim.card3Desc",
+    ctaKey: "interim.card3Cta",
     getHref: getFacebookUrl,
-    cta: "Get updates",
   },
-] as const;
+];
 
 export function InterimLearningSection() {
+  const t = useT();
   const comingSoon = isComingSoonMode();
 
   return (
@@ -44,31 +53,28 @@ export function InterimLearningSection() {
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-            Learn with us <span className="text-sky-500">today</span>
+            {t("interim.heading")}
           </h2>
-          <p className="mt-3 text-base text-slate-600 dark:text-slate-300">
-            While we finish the one-to-one booking platform, we are publishing courses and hosting
-            free lives—you do not need an account.
-          </p>
+          <p className="mt-3 text-base text-slate-600 dark:text-slate-300">{t("interim.sub")}</p>
         </div>
 
         <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {cards.map((card) => {
+          {cardMeta.map((card) => {
             const href = card.getHref();
             const external = isExternalSocialUrl(href);
+            const Icon = card.icon;
             return (
               <article
-                key={card.title}
+                key={card.titleKey}
                 className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
               >
-                <card.icon className="h-9 w-9 text-sky-500" aria-hidden />
+                <Icon className="h-9 w-9 text-sky-500" aria-hidden />
                 <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
-                  {card.title}
+                  {t(card.titleKey)}
                 </h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  {card.description}
+                  {t(card.descKey)}
                 </p>
-                {/* CTA_HIDDEN — card link buttons until full launch (or when social URLs are set) */}
                 {!comingSoon && external ? (
                   <div className="mt-5">
                     <Button
@@ -77,7 +83,7 @@ export function InterimLearningSection() {
                       className="w-full"
                       onClick={() => window.open(href, "_blank", "noopener,noreferrer")}
                     >
-                      {card.cta}
+                      {t(card.ctaKey)}
                     </Button>
                   </div>
                 ) : null}

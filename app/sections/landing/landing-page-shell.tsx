@@ -19,7 +19,6 @@ import { HowItWorksSection } from "@/app/sections/landing/how-it-works-section";
 import { FaqSection } from "@/app/sections/landing/faq-section";
 import { LandingInitialLoader } from "@/app/sections/landing/landing-initial-loader";
 import { WhatsAppChatWidget } from "@/app/dashboard/_components/whatsapp-chat-widget";
-import { ComingSoonBanner } from "@/app/sections/landing/coming-soon-banner";
 import { InterimLearningSection } from "@/app/sections/landing/interim-learning-section";
 import Footer from "@/app/components/ui/Footer";
 
@@ -44,8 +43,6 @@ export function LandingPageShell() {
   );
   const query = useMemo(() => new URLSearchParams(search), [search]);
   const queryAuth = query.get("auth");
-  const showNoticeBanner =
-    comingSoon || query.get("notice") === "coming-soon";
   const queryAuthView: AuthEntryView | null =
     !comingSoon &&
     (queryAuth === "login" ||
@@ -94,9 +91,6 @@ export function LandingPageShell() {
   return (
     <>
       <div className="min-h-screen bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-        {showNoticeBanner ? (
-          <ComingSoonBanner />
-        ) : null}
         <LandingHeader
           user={user}
           comingSoon={comingSoon}
@@ -106,7 +100,7 @@ export function LandingPageShell() {
           onLearnNowClick={scrollToLearnNow}
         />
 
-        <main className="space-y-0">
+        <main className="space-y-0 overflow-x-hidden">
           <HeroSection
             user={user}
             comingSoon={comingSoon}

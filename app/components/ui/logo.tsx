@@ -14,7 +14,7 @@ export function Logo({ isDark = false }: LogoProps) {
         width={220}
         height={58}
         priority
-        className="h-11 w-auto object-contain"
+        className="h-9 w-auto max-w-[min(100%,11rem)] object-contain sm:h-11 sm:max-w-none"
       />
     </Link>
   );

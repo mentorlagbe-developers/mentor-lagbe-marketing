@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { CalendarCheck2, Search, Video } from "lucide-react";
-
+import { useT } from "@/lib/locale/locale-provider";
 export type WorkflowStep = {
   title: string;
   description: string;
@@ -16,31 +16,40 @@ type HowItWorksSectionProps = {
   steps?: WorkflowStep[];
 };
 
-const defaultSteps: WorkflowStep[] = [
-  {
-    title: "Search Topic",
-    description: "Choose the exact topic or blocker you need help with.",
-    icon: Search,
-  },
-  {
-    title: "Book Slot",
-    description: "Pick a mentor and reserve a time that matches your schedule.",
-    icon: CalendarCheck2,
-  },
-  {
-    title: "Start 1-on-1 Call",
-    description: "Join the live session and solve your problem in real-time.",
-    icon: Video,
-  },
-];
-
 export function HowItWorksSection({
-  heading = "How it Works",
-  subtitle = "Three quick steps from confusion to solution.",
-  steps = defaultSteps,
+  heading,
+  subtitle,
+  steps,
 }: HowItWorksSectionProps) {
+  const t = useT();
   const sectionRef = useRef<HTMLElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+
+  const resolvedSteps = useMemo<WorkflowStep[]>(
+    () =>
+      steps ??
+      [
+        {
+          title: t("how.step1Title"),
+          description: t("how.step1Desc"),
+          icon: Search,
+        },
+        {
+          title: t("how.step2Title"),
+          description: t("how.step2Desc"),
+          icon: CalendarCheck2,
+        },
+        {
+          title: t("how.step3Title"),
+          description: t("how.step3Desc"),
+          icon: Video,
+        },
+      ],
+    [steps, t]
+  );
+
+  const resolvedHeading = heading ?? t("how.heading");
+  const resolvedSubtitle = subtitle ?? t("how.sub");
 
   useEffect(() => {
     if (!sectionRef.current) {
@@ -65,19 +74,19 @@ export function HowItWorksSection({
     <section ref={sectionRef} className="bg-linear-to-b from-slate-200 via-sky-50/60 to-slate-300 py-12 transition-colors dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 sm:py-14">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className={`mx-auto max-w-3xl text-center scroll-reveal ${isVisible ? "is-visible" : ""}`}>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-500">3-Step Sprint</p>
-          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">{heading}</h2>
-          <p className="mt-3 text-base text-slate-600 dark:text-slate-300 sm:text-lg">{subtitle}</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-500">{t("how.eyebrow")}</p>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">{resolvedHeading}</h2>
+          <p className="mt-3 text-base text-slate-600 dark:text-slate-300 sm:text-lg">{resolvedSubtitle}</p>
         </div>
 
         <div className="relative mt-10 grid gap-6 md:grid-cols-3">
           <div className="pointer-events-none absolute left-[16.5%] right-[16.5%] top-10 hidden border-t-2 border-dashed border-sky-300 dark:border-sky-600 md:block" />
 
-          {steps.map((step, index) => {
+          {resolvedSteps.map((step, index) => {
             const Icon = step.icon;
             return (
               <article
-                key={step.title}
+                key={`${step.title}-${index}`}
                 className={`relative scroll-reveal transform-gpu rounded-3xl border border-slate-300/85 bg-white/40 p-6 text-center shadow-[0_18px_42px_-20px_rgba(15,23,42,0.45)] backdrop-blur-md transition-all duration-500 ease-out will-change-transform hover:-translate-y-1.5 hover:shadow-[0_24px_54px_-18px_rgba(14,165,233,0.35)] dark:border-slate-700 dark:bg-slate-800/60 ${isVisible ? "is-visible" : ""}`}
                 style={{ transitionDelay: `${90 + index * 100}ms` }}
               >

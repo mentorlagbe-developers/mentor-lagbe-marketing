@@ -11,16 +11,24 @@ import type { UserRole } from "@/lib/mock-auth";
 type DashboardSidebarProps = {
   role: UserRole;
   collapsed: boolean;
+  mobileOpen?: boolean;
+  onNavigate?: () => void;
 };
 
 const SUPPORT_IDS = new Set(["help-center", "privacy-policies", "platform-settings"]);
 
-export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
+export function DashboardSidebar({
+  role,
+  collapsed,
+  mobileOpen = false,
+  onNavigate,
+}: DashboardSidebarProps) {
   const pathname = usePathname();
   const menus = getDashboardMenuByRole(role);
   const primaryMenus = menus.filter((item) => !SUPPORT_IDS.has(item.id));
   const supportMenus = menus.filter((item) => SUPPORT_IDS.has(item.id));
-  const widthClass = collapsed ? "w-22" : "w-65";
+  const showExpanded = mobileOpen || !collapsed;
+  const widthClass = showExpanded ? "w-65" : "w-22";
   const panelClass = "bg-linear-to-b from-sky-900 via-blue-900 to-cyan-900";
   const helpCenter = supportMenus.find((item) => item.id === "help-center");
   const privacyMenu = supportMenus.find((item) => item.id === "privacy-policies");
@@ -32,15 +40,17 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
   return (
     <aside
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-700 p-4 text-slate-100 transition-all duration-300",
+        "fixed inset-y-0 left-0 z-40 flex h-screen shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-700 p-4 text-slate-100 transition-all duration-300 lg:sticky lg:top-0 lg:translate-x-0",
         widthClass,
         panelClass,
+        mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
-      {!collapsed ? (
+      {showExpanded ? (
         <div className="mb-4 flex justify-center">
           <Link
             href="/"
+            onClick={onNavigate}
             className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white p-1.5 shadow-sm transition hover:scale-[1.03]"
           >
             <Image
@@ -54,14 +64,14 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
         </div>
       ) : null}
 
-      {!collapsed ? (
+      {showExpanded ? (
         <div className="mb-6 space-y-1">
           <p className="text-xs uppercase tracking-[0.22em] text-sky-200/70">Portal</p>
           <h2 className="text-lg font-semibold capitalize">{role} Dashboard</h2>
         </div>
       ) : null}
 
-      <p className={cn("mb-3 text-xs uppercase tracking-[0.2em] text-sky-200/70", collapsed && "text-center")}>
+      <p className={cn("mb-3 text-xs uppercase tracking-[0.2em] text-sky-200/70", !showExpanded && "text-center")}>
         Menu
       </p>
       <nav className="space-y-2">
@@ -73,14 +83,15 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
             <Link
               key={menu.id}
               href={menu.href}
+              onClick={onNavigate}
               className={cn(
                 "group flex rounded-xl border px-3 py-2 transition",
                 active
                   ? "border-cyan-300/40 bg-white/13 text-white"
                   : "border-transparent text-slate-200/85 hover:border-white/15 hover:bg-white/10 hover:text-white",
-                collapsed ? "justify-center" : "items-center gap-2.5",
+                !showExpanded ? "justify-center" : "items-center gap-2.5",
               )}
-              title={collapsed ? menu.label : undefined}
+              title={!showExpanded ? menu.label : undefined}
             >
               <span
                 className={cn(
@@ -90,7 +101,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
               >
                 <Icon className="h-4 w-4" />
               </span>
-              {!collapsed ? <span className="min-w-0 text-sm font-semibold">{menu.label}</span> : null}
+              {showExpanded ? <span className="min-w-0 text-sm font-semibold">{menu.label}</span> : null}
             </Link>
           );
         })}
@@ -100,17 +111,18 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
         <p
           className={cn(
             "mb-3 text-xs uppercase tracking-[0.2em] text-sky-200/70",
-            collapsed && "text-center text-[10px]",
+            !showExpanded && "text-center text-[10px]",
           )}
         >
           Support
         </p>
         <div className="space-y-2">
-          {!collapsed ? (
+          {showExpanded ? (
             <>
               {helpCenter ? (
                 <Link
                   href={helpCenter.href}
+                  onClick={onNavigate}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-slate-200/90 transition hover:border-white/15 hover:bg-white/10 hover:text-white",
                     helpActive ? "border-cyan-300/40 bg-white/13 text-white" : "border-transparent",
@@ -125,6 +137,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
               {privacyMenu ? (
                 <Link
                   href={privacyMenu.href}
+                  onClick={onNavigate}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-slate-200/90 transition hover:border-white/15 hover:bg-white/10 hover:text-white",
                     privacyActive ? "border-cyan-300/40 bg-white/13 text-white" : "border-transparent",
@@ -139,6 +152,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
               {settingsMenu ? (
                 <Link
                   href={settingsMenu.href}
+                  onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-2.5 rounded-xl border px-3 py-2 text-slate-200/90 transition hover:border-white/15 hover:bg-white/10 hover:text-white",
                     settingsActive ? "border-cyan-300/40 bg-white/13 text-white" : "border-transparent",
@@ -156,6 +170,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
               {helpCenter ? (
                 <Link
                   href={helpCenter.href}
+                  onClick={onNavigate}
                   className="flex w-full items-center justify-center rounded-xl bg-white/10 p-2.5 transition hover:bg-white/20"
                   title="Help Center"
                 >
@@ -165,6 +180,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
               {privacyMenu ? (
                 <Link
                   href={privacyMenu.href}
+                  onClick={onNavigate}
                   className="flex w-full items-center justify-center rounded-xl bg-white/10 p-2.5 transition hover:bg-white/20"
                   title="Privacy & Policies"
                 >
@@ -174,6 +190,7 @@ export function DashboardSidebar({ role, collapsed }: DashboardSidebarProps) {
               {settingsMenu ? (
                 <Link
                   href={settingsMenu.href}
+                  onClick={onNavigate}
                   className="flex w-full items-center justify-center rounded-xl bg-white/10 p-2.5 transition hover:bg-white/20"
                   title={settingsMenu.label}
                 >
