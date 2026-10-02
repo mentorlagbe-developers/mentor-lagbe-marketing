@@ -11,10 +11,10 @@ export function Logo({ isDark = false }: LogoProps) {
       <Image
         src={isDark ? "/images/logo-2.png" : "/images/logo.png"}
         alt="Mentor Lagbe logo"
-        width={220}
-        height={58}
+        width={240}
+        height={64}
         priority
-        className="h-9 w-auto max-w-[min(100%,11rem)] object-contain sm:h-11 sm:max-w-none"
+        className="h-10 w-auto max-w-[min(100%,12.5rem)] object-contain sm:h-12 sm:max-w-none"
       />
     </Link>
   );

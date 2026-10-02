@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -72,22 +73,16 @@ export function AboutHeroSection({ onPrimaryCtaClick, hideCtAs = false }: AboutH
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-          className="relative mx-auto flex h-[320px] w-full max-w-xl items-center justify-center rounded-3xl border border-slate-200 bg-white/70 p-8 shadow-xl backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/65"
+          className="relative mx-auto h-[min(380px,70vw)] w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="absolute inset-6 rounded-[20px] border border-sky-200/80 dark:border-sky-800/60" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.22),transparent_45%),radial-gradient(circle_at_80%_70%,rgba(99,102,241,0.24),transparent_48%)]" />
-          <div className="relative grid w-full gap-3 text-center">
-            <div className="mx-auto h-3 w-3 rounded-full bg-sky-500" />
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">
-              {t("about.hero.visualTag")}
-            </p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {t("about.hero.visualTitle")}
-            </p>
-            <p className="mx-auto max-w-sm text-sm text-slate-600 dark:text-slate-300">
-              {t("about.hero.visualDesc")}
-            </p>
-          </div>
+          <Image
+            src="/about/about_hero.jpg"
+            alt={t("about.hero.badge")}
+            fill
+            className="object-cover object-center"
+            sizes="(max-width: 1024px) 100vw, 36rem"
+            priority
+          />
         </motion.div>
       </div>
     </section>

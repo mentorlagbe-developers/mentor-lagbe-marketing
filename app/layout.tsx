@@ -20,6 +20,10 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_COMING_SOON === "true"
       ? "One-to-one live mentorship coming soon. Free courses and live sessions on YouTube and Facebook."
       : "One-to-one live mentorship platform for students, resources, and guided learning.",
+  icons: {
+    icon: [{ url: "/images/logo-3.png", type: "image/png" }],
+    apple: [{ url: "/images/logo-3.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

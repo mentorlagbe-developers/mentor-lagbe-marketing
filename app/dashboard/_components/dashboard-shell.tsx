@@ -12,6 +12,7 @@ import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import type { AuthUser } from "@/lib/mock-auth";
 import { useAuth } from "@/lib/use-auth";
 import { NotificationsProvider } from "@/lib/notifications-context";
+import { cn } from "@/lib/utils";
 
 type DashboardShellProps = { children: React.ReactNode };
 
@@ -67,14 +68,17 @@ export function DashboardShell({ children }: DashboardShellProps) {
   return (
     <NotificationsProvider role={activeRole}>
       <div className="flex min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-        {isMobileNavOpen ? (
-          <button
-            type="button"
-            className="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm lg:hidden"
-            aria-label="Close navigation"
-            onClick={() => setIsMobileNavOpen(false)}
-          />
-        ) : null}
+        <button
+          type="button"
+          className={cn(
+            "fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-300 ease-out lg:hidden",
+            isMobileNavOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+          )}
+          aria-label="Close navigation"
+          aria-hidden={!isMobileNavOpen}
+          tabIndex={isMobileNavOpen ? 0 : -1}
+          onClick={() => setIsMobileNavOpen(false)}
+        />
         <DashboardSidebar
           role={activeRole}
           collapsed={isSidebarCollapsed}

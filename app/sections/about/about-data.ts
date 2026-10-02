@@ -7,6 +7,8 @@ export type AboutValue = {
   description: string;
   icon: LucideIcon;
   accentClass: string;
+  /** Tailwind border-top color classes, e.g. border-t-sky-500 */
+  topBorderClass?: string;
 };
 
 export type JourneyMilestone = {

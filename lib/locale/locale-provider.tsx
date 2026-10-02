@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
   useSyncExternalStore,
 } from "react";
 import { translate, type MessageKey } from "@/lib/locale/messages";
@@ -26,8 +25,8 @@ function readStoredLocale(): Locale {
   return stored === "bn" ? "bn" : "en";
 }
 
-let localeSnapshot: Locale =
-  typeof window !== "undefined" ? readStoredLocale() : "en";
+/** Must match server snapshot until after mount (avoids hydration mismatch). */
+let localeSnapshot: Locale = "en";
 const listeners = new Set<() => void>();
 
 function subscribeLocale(listener: () => void) {
@@ -48,21 +47,19 @@ function setGlobalLocale(next: Locale) {
   emitLocale();
 }
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [hydrated, setHydrated] = useState(false);
+function getServerLocaleSnapshot(): Locale {
+  return "en";
+}
 
+export function LocaleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    const stored = readStoredLocale();
-    localeSnapshot = stored;
-    document.documentElement.lang = stored === "bn" ? "bn" : "en";
-    setHydrated(true);
-    emitLocale();
+    setGlobalLocale(readStoredLocale());
   }, []);
 
   const locale = useSyncExternalStore<Locale>(
     subscribeLocale,
     () => localeSnapshot,
-    (): Locale => "en"
+    getServerLocaleSnapshot
   );
 
   const setLocale = useCallback((next: Locale) => {
@@ -72,10 +69,6 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const t = useCallback((key: MessageKey) => translate(locale, key), [locale]);
 
   const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
-
-  if (!hydrated) {
-    return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
-  }
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }

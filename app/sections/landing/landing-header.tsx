@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { Menu, MoonStar, Sun, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { LanguageSwitcher } from "@/app/components/ui/language-switcher";
@@ -37,10 +39,19 @@ export function LandingHeader({
   const t = useT();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    return window.localStorage.getItem("mentorlagbe-theme") === "dark" ? "dark" : "light";
-  });
+  const [isMounted, setIsMounted] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("mentorlagbe-theme");
+    if (stored === "dark" || stored === "light") {
+      setTheme(stored);
+    }
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 10);
@@ -91,7 +102,89 @@ export function LandingHeader({
   }
 
   const navLinkClass =
-    "block w-full rounded-xl px-4 py-3 text-left text-base font-medium text-slate-700 transition hover:bg-sky-50 dark:text-slate-200 dark:hover:bg-slate-800";
+    "block w-full rounded-xl px-4 py-3.5 text-left text-base font-medium text-slate-800 transition hover:bg-sky-50 dark:text-slate-100 dark:hover:bg-slate-800/80";
+
+  const mobileMenu =
+    isMounted &&
+    createPortal(
+      <AnimatePresence>
+        {isMobileMenuOpen ? (
+          <>
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="fixed inset-0 z-[100] bg-slate-900/55 backdrop-blur-[2px] md:hidden"
+              aria-label={t("header.menuClose")}
+              onClick={closeMobileMenu}
+            />
+            <motion.nav
+              id="landing-mobile-nav"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "tween", duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+              className={cn(
+                "fixed inset-y-0 left-0 z-[101] flex h-dvh w-[min(100%,20.5rem)] max-w-[85vw] flex-col border-r border-slate-200/90 bg-white shadow-[8px_0_32px_-12px_rgba(15,23,42,0.35)] dark:border-slate-700 dark:bg-slate-950 md:hidden"
+              )}
+              aria-label="Main"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5 dark:border-slate-800">
+                <Logo isDark={theme === "dark"} />
+                <button
+                  type="button"
+                  onClick={closeMobileMenu}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  aria-label={t("header.menuClose")}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                {navItems.map((item) =>
+                  item.isAction ? (
+                    <button key={item.labelKey} type="button" onClick={handleContact} className={navLinkClass}>
+                      {t(item.labelKey)}
+                    </button>
+                  ) : (
+                    <Link key={item.labelKey} href={item.href} onClick={closeMobileMenu} className={navLinkClass}>
+                      {t(item.labelKey)}
+                    </Link>
+                  )
+                )}
+
+                <div className="relative mt-3 px-1">
+                  <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  <input
+                    type="search"
+                    placeholder={t("header.searchPlaceholder")}
+                    className="h-11 w-full rounded-xl border border-blue-500/40 bg-slate-50 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-sky-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  />
+                </div>
+
+                {!comingSoon ? (
+                  <div className="mt-auto px-1 pt-4">
+                    {user ? (
+                      <Button size="md" className="w-full" onClick={handleDashboard}>
+                        {t("nav.dashboard")}
+                      </Button>
+                    ) : (
+                      <Button size="md" className="w-full" onClick={handleAuth}>
+                        {t("nav.login")}
+                      </Button>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </motion.nav>
+          </>
+        ) : null}
+      </AnimatePresence>,
+      document.body
+    );
 
   return (
     <header
@@ -190,60 +283,7 @@ export function LandingHeader({
         </div>
       </div>
 
-      {isMobileMenuOpen ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
-            aria-label={t("header.menuClose")}
-            onClick={closeMobileMenu}
-          />
-          <nav
-            id="landing-mobile-nav"
-            className={cn(
-              "fixed inset-x-0 top-[57px] z-50 max-h-[calc(100dvh-57px)] overflow-y-auto border-b border-slate-200 bg-white/98 px-4 py-4 shadow-lg dark:border-slate-700 dark:bg-slate-900/98 md:hidden"
-            )}
-            aria-label="Main"
-          >
-            <div className="mx-auto flex max-w-7xl flex-col gap-2">
-              {navItems.map((item) =>
-                item.isAction ? (
-                  <button key={item.labelKey} type="button" onClick={handleContact} className={navLinkClass}>
-                    {t(item.labelKey)}
-                  </button>
-                ) : (
-                  <Link key={item.labelKey} href={item.href} onClick={closeMobileMenu} className={navLinkClass}>
-                    {t(item.labelKey)}
-                  </Link>
-                )
-              )}
-
-              <div className="relative mt-2">
-                <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-                <input
-                  type="search"
-                  placeholder={t("header.searchPlaceholder")}
-                  className="h-11 w-full rounded-xl border border-blue-500/40 bg-white/65 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-sky-400 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100 dark:placeholder:text-slate-500"
-                />
-              </div>
-
-              {!comingSoon ? (
-                <div className="mt-2 pt-2">
-                  {user ? (
-                    <Button size="md" className="w-full" onClick={handleDashboard}>
-                      {t("nav.dashboard")}
-                    </Button>
-                  ) : (
-                    <Button size="md" className="w-full" onClick={handleAuth}>
-                      {t("nav.login")}
-                    </Button>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          </nav>
-        </>
-      ) : null}
+      {mobileMenu}
     </header>
   );
 }

@@ -103,11 +103,7 @@ export function TopicExpertGridSection({
             return (
               <article
                 key={topic.title}
-                className={`group scroll-reveal transform-gpu rounded-[24px] border bg-white/40 p-5 shadow-[0_18px_42px_-20px_rgba(15,23,42,0.45)] backdrop-blur-md transition-all duration-500 ease-out will-change-transform hover:-translate-y-1.5 hover:shadow-[0_24px_54px_-18px_rgba(14,165,233,0.35)] dark:bg-slate-800/60 ${isVisible ? "is-visible" : ""} ${
-                  topic.isFeatured
-                    ? "border-sky-200/75 border-t-4 border-t-sky-500 dark:border-sky-600/60 dark:border-t-sky-400"
-                    : "border-slate-300/80 dark:border-slate-700"
-                }`}
+                className={`group scroll-reveal transform-gpu rounded-[24px] border border-sky-200/75 border-t-4 border-t-sky-500 bg-white/40 p-5 shadow-[0_18px_42px_-20px_rgba(15,23,42,0.45)] backdrop-blur-md transition-all duration-500 ease-out will-change-transform hover:-translate-y-1.5 hover:shadow-[0_24px_54px_-18px_rgba(14,165,233,0.35)] dark:border-sky-600/60 dark:border-t-sky-400 dark:bg-slate-800/60 ${isVisible ? "is-visible" : ""}`}
                 style={{ transitionDelay: `${90 + index * 80}ms` }}
               >
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/65 text-sky-500 transition group-hover:bg-sky-500 group-hover:text-white dark:border-slate-600 dark:bg-slate-700 dark:text-sky-300">

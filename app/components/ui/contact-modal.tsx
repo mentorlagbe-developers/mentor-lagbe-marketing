@@ -113,7 +113,10 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
   }
 
   return (
-    <div className="modal-overlay-animate fixed inset-0 z-60 flex items-center justify-center bg-black/45 px-4 py-5 backdrop-blur-md">
+    <div
+      className="modal-overlay-animate fixed inset-0 z-60 flex items-center justify-center overflow-hidden bg-black/45 p-3 backdrop-blur-md sm:p-5"
+      style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))", paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+    >
       <button
         type="button"
         aria-label={t("contact.closeOverlay")}
@@ -121,20 +124,27 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
         onClick={closeWithReset}
       />
 
-      <div className="modal-pop-animate relative z-10 w-full max-w-5xl rounded-[30px] border border-white/40 bg-linear-to-br from-white/50 via-sky-100/20 to-white/40 p-1.5 shadow-[0_30px_90px_-36px_rgba(14,165,233,0.45)] backdrop-blur-xl">
-        <div className="pointer-events-none absolute -left-3 -top-3 h-8 w-8 rounded-full border border-white/50 bg-white/30" />
-        <div className="pointer-events-none absolute -bottom-3 -right-3 h-8 w-8 rounded-full border border-white/50 bg-white/30" />
-        <div className="relative h-[min(520px,calc(100vh-40px))] overflow-hidden rounded-[24px] border border-white/45 bg-white shadow-[0_30px_90px_-36px_rgba(15,23,42,0.7)]">
+      <div className="modal-pop-animate relative z-10 flex w-full max-w-5xl max-h-full min-h-0 flex-col sm:max-h-[min(540px,calc(100dvh-2.5rem))]">
+        <div className="pointer-events-none absolute -left-3 -top-3 hidden h-8 w-8 rounded-full border border-white/50 bg-white/30 sm:block" />
+        <div className="pointer-events-none absolute -bottom-3 -right-3 hidden h-8 w-8 rounded-full border border-white/50 bg-white/30 sm:block" />
+        <div
+          className={cn(
+            "relative flex min-h-0 max-h-full flex-1 flex-col overflow-hidden rounded-2xl border border-white/45 bg-white shadow-[0_30px_90px_-36px_rgba(15,23,42,0.7)] sm:rounded-[24px]",
+            "max-sm:border-slate-200/80",
+            "sm:rounded-[30px] sm:border-white/40 sm:bg-linear-to-br sm:from-white/50 sm:via-sky-100/20 sm:to-white/40 sm:p-1.5 sm:shadow-[0_30px_90px_-36px_rgba(14,165,233,0.45)] sm:backdrop-blur-xl"
+          )}
+        >
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden sm:rounded-[24px] sm:border sm:border-white/45 sm:bg-white">
         <button
           type="button"
           onClick={closeWithReset}
-          className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 transition hover:text-slate-800"
+          className="absolute right-2.5 top-2.5 z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 transition hover:text-slate-800 sm:right-3 sm:top-3"
           aria-label={t("contact.close")}
         >
           <X className="h-4 w-4" />
         </button>
 
-        <div className="grid h-full grid-cols-1 lg:grid-cols-2">
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
           <div className="relative hidden bg-[#f4efe7] lg:block">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.45),transparent_42%)]" />
             <div className="relative flex h-full items-center justify-center p-8">
@@ -148,16 +158,16 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-col justify-center overflow-y-auto bg-[#f8f8f8] px-6 py-5 sm:px-7">
+          <div className="flex min-h-0 flex-col justify-center bg-[#f8f8f8] px-4 py-3.5 pr-11 sm:overflow-y-auto sm:px-7 sm:py-5">
             {!isSubmitted ? (
-              <form className="space-y-3.5" onSubmit={handleSubmit}>
-                <div className="space-y-1">
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+              <form className="space-y-2 sm:space-y-3.5" onSubmit={handleSubmit}>
+                <div className="space-y-0.5 sm:space-y-1">
+                  <h2 className="text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl">
                     {t("contact.title")}{" "}
                     <span className="text-sky-500">{t("contact.titleHighlight")}</span>
                   </h2>
-                  <p className="text-sm text-slate-500">{t("contact.intro")}</p>
-                  <p className="text-sm text-slate-600">
+                  <p className="hidden text-sm text-slate-500 sm:block">{t("contact.intro")}</p>
+                  <p className="text-[11px] leading-snug text-slate-600 sm:text-sm">
                     {t("contact.emailDirect")}{" "}
                     <a
                       href={SITE_CONTACT.emailHref}
@@ -168,8 +178,8 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="contact-name" className="text-sm font-medium text-slate-700">
+                <div className="space-y-1">
+                  <label htmlFor="contact-name" className="text-xs font-medium text-slate-700 sm:text-sm">
                     {t("contact.labelName")}
                   </label>
                   <input
@@ -178,16 +188,16 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
                     value={form.name}
                     onChange={(event) => setForm((curr) => ({ ...curr, name: event.target.value }))}
                     className={cn(
-                      "h-11 w-full rounded-xl border bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-amber-400",
+                      "h-9 w-full rounded-lg border bg-white px-3 text-sm text-slate-900 outline-none focus:border-amber-400 sm:h-11 sm:rounded-xl sm:px-3.5",
                       errors.name ? "border-rose-300" : "border-slate-200"
                     )}
                   />
-                  {errors.name ? <p className="text-xs text-rose-500">{errors.name}</p> : null}
+                  {errors.name ? <p className="text-[11px] text-rose-500 sm:text-xs">{errors.name}</p> : null}
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label htmlFor="contact-email" className="text-sm font-medium text-slate-700">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                  <div className="space-y-1">
+                    <label htmlFor="contact-email" className="text-xs font-medium text-slate-700 sm:text-sm">
                       {t("contact.labelEmail")}
                     </label>
                     <input
@@ -197,15 +207,15 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
                       value={form.email}
                       onChange={(event) => setForm((curr) => ({ ...curr, email: event.target.value }))}
                       className={cn(
-                        "h-11 w-full rounded-xl border bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-amber-400",
+                        "h-9 w-full rounded-lg border bg-white px-3 text-sm text-slate-900 outline-none focus:border-amber-400 sm:h-11 sm:rounded-xl sm:px-3.5",
                         errors.email ? "border-rose-300" : "border-slate-200"
                       )}
                     />
-                    {errors.email ? <p className="text-xs text-rose-500">{errors.email}</p> : null}
+                    {errors.email ? <p className="text-[11px] text-rose-500 sm:text-xs">{errors.email}</p> : null}
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label htmlFor="contact-phone" className="text-sm font-medium text-slate-700">
+                  <div className="space-y-1">
+                    <label htmlFor="contact-phone" className="text-xs font-medium text-slate-700 sm:text-sm">
                       {t("contact.labelPhone")}
                     </label>
                     <input
@@ -215,35 +225,35 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
                       value={form.phone}
                       onChange={(event) => setForm((curr) => ({ ...curr, phone: event.target.value }))}
                       className={cn(
-                        "h-11 w-full rounded-xl border bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-amber-400",
+                        "h-9 w-full rounded-lg border bg-white px-3 text-sm text-slate-900 outline-none focus:border-amber-400 sm:h-11 sm:rounded-xl sm:px-3.5",
                         errors.phone ? "border-rose-300" : "border-slate-200"
                       )}
                     />
-                    {errors.phone ? <p className="text-xs text-rose-500">{errors.phone}</p> : null}
+                    {errors.phone ? <p className="text-[11px] text-rose-500 sm:text-xs">{errors.phone}</p> : null}
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="contact-description" className="text-sm font-medium text-slate-700">
+                <div className="space-y-1">
+                  <label htmlFor="contact-description" className="text-xs font-medium text-slate-700 sm:text-sm">
                     {t("contact.labelMessage")}
                   </label>
                   <textarea
                     id="contact-description"
-                    rows={4}
+                    rows={2}
                     placeholder={t("contact.placeholderMessage")}
                     value={form.description}
                     onChange={(event) => setForm((curr) => ({ ...curr, description: event.target.value }))}
                     className={cn(
-                      "w-full rounded-xl border bg-white px-3.5 py-3 text-sm text-slate-900 outline-none focus:border-amber-400",
+                      "min-h-[3.25rem] w-full resize-none rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-400 sm:min-h-0 sm:rounded-xl sm:px-3.5 sm:py-3",
                       errors.description ? "border-rose-300" : "border-slate-200"
                     )}
                   />
-                  {errors.description ? <p className="text-xs text-rose-500">{errors.description}</p> : null}
+                  {errors.description ? <p className="text-[11px] text-rose-500 sm:text-xs">{errors.description}</p> : null}
                 </div>
 
                 <button
                   type="submit"
-                  className="h-11 w-full rounded-xl bg-linear-to-r from-blue-500 to-sky-400 text-sm font-semibold text-white shadow-[0_12px_30px_-14px_rgba(249,115,22,0.55)] transition hover:brightness-105"
+                  className="h-9 w-full rounded-lg bg-linear-to-r from-blue-500 to-sky-400 text-sm font-semibold text-white shadow-[0_12px_30px_-14px_rgba(249,115,22,0.55)] transition hover:brightness-105 sm:h-11 sm:rounded-xl"
                 >
                   {t("contact.submit")}
                 </button>
@@ -264,6 +274,7 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
       </div>

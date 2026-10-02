@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { AuthModal } from "../../components/ui/auth-modal";
 import { ContactModal } from "@/app/components/ui/contact-modal";
@@ -17,7 +17,6 @@ import { ConfusionClaritySection } from "@/app/sections/landing/confusion-clarit
 import { TopicExpertGridSection } from "@/app/sections/landing/topic-expert-grid-section";
 import { HowItWorksSection } from "@/app/sections/landing/how-it-works-section";
 import { FaqSection } from "@/app/sections/landing/faq-section";
-import { LandingInitialLoader } from "@/app/sections/landing/landing-initial-loader";
 import { WhatsAppChatWidget } from "@/app/dashboard/_components/whatsapp-chat-widget";
 import { InterimLearningSection } from "@/app/sections/landing/interim-learning-section";
 import Footer from "@/app/components/ui/Footer";
@@ -30,7 +29,6 @@ export function LandingPageShell() {
   const [manualAuthView, setManualAuthView] = useState<AuthEntryView>("login");
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [showInitialLoader, setShowInitialLoader] = useState(false);
   const user = useSyncExternalStore<AuthUser | null>(
     subscribeAuthStore,
     readAuthSnapshot,
@@ -66,27 +64,6 @@ export function LandingPageShell() {
   function scrollToLearnNow() {
     document.getElementById("learn-now")?.scrollIntoView({ behavior: "smooth" });
   }
-
-  useEffect(() => {
-    const key = "mentorlagbe-landing-loader-seen";
-    if (typeof window === "undefined") return;
-    const id = requestAnimationFrame(() => {
-      if (!sessionStorage.getItem(key)) {
-        startTransition(() => setShowInitialLoader(true));
-      }
-    });
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  useEffect(() => {
-    if (!showInitialLoader || typeof window === "undefined") return;
-    const key = "mentorlagbe-landing-loader-seen";
-    const timer = window.setTimeout(() => {
-      sessionStorage.setItem(key, "1");
-      setShowInitialLoader(false);
-    }, 550);
-    return () => window.clearTimeout(timer);
-  }, [showInitialLoader]);
 
   return (
     <>
@@ -126,8 +103,6 @@ export function LandingPageShell() {
           <Footer />
         </main>
       </div>
-      {showInitialLoader ? <LandingInitialLoader /> : null}
-
       {/* BACKEND_LIVE — auth modal (register / WhatsApp OTP via API) */}
       {isModalOpen ? (
         <AuthModal

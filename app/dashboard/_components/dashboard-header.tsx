@@ -150,12 +150,7 @@ export function DashboardHeader({
     const query = new URLSearchParams(window.location.search);
     return query.get("role");
   });
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") {
-      return "light";
-    }
-    return window.localStorage.getItem("mentorlagbe-theme") === "dark" ? "dark" : "light";
-  });
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -186,6 +181,13 @@ export function DashboardHeader({
     (profile?.profilePictureUrl?.trim() ||
       user.profilePictureUrl?.trim() ||
       null);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("mentorlagbe-theme");
+    if (stored === "dark" || stored === "light") {
+      setTheme(stored);
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");

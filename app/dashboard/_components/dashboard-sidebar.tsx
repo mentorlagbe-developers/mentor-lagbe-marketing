@@ -40,10 +40,11 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex h-screen shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-700 p-4 text-slate-100 transition-all duration-300 lg:sticky lg:top-0 lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 flex h-screen shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-700 p-4 text-slate-100 lg:sticky lg:top-0 lg:translate-x-0",
         widthClass,
         panelClass,
-        mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0",
+        "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] lg:transition-[width]",
       )}
     >
       {showExpanded ? (
