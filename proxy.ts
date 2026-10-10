@@ -8,7 +8,7 @@ function isComingSoon(): boolean {
   );
 }
 
-const BLOCKED_PREFIXES = ["/dashboard", "/student", "/admin"];
+const BLOCKED_PREFIXES = ["/dashboard", "/student", "/mentor", "/admin"];
 
 export function proxy(request: NextRequest) {
   if (!isComingSoon()) {

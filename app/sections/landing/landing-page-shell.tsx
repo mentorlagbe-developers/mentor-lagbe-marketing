@@ -103,7 +103,7 @@ export function LandingPageShell() {
           <Footer />
         </main>
       </div>
-      {/* BACKEND_LIVE — auth modal (register / WhatsApp OTP via API) */}
+      {/* BACKEND_LIVE — auth modal (register / email OTP via API) */}
       {isModalOpen ? (
         <AuthModal
           key={authView}

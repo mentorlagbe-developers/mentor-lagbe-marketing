@@ -156,7 +156,7 @@ export function BookingDetailPanel({
       setPayerNumber("");
       await load();
       onUpdated?.();
-      setActionMessage("Payment submitted. We will notify you on WhatsApp when it is reviewed.");
+      setActionMessage("Payment submitted. We will email you when it is reviewed.");
     } catch (e) {
       setActionMessage(e instanceof ApiError ? e.message : "Payment submission failed.");
     } finally {
@@ -257,7 +257,7 @@ export function BookingDetailPanel({
         <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
           <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">Submit payment</p>
           <p className="mt-1 text-xs text-amber-800/90 dark:text-amber-200/80">
-            Pay with bKash or Nagad. We will also notify you on WhatsApp when your payment is confirmed.
+            Pay with bKash or Nagad. We will email you when your payment is confirmed.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <label className="space-y-1 text-sm sm:col-span-3">

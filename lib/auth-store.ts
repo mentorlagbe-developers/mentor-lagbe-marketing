@@ -65,9 +65,9 @@ export function toDashboardRoleQuery(role: UserRole) {
 }
 
 export function roleHomePath(role: UserRole) {
-  if (role === "teacher") return "/mentor";
-  if (role === "admin" || role === "superadmin") return "/admin";
-  return "/student";
+  if (role === "teacher") return "/dashboard/dashboard";
+  if (role === "admin" || role === "superadmin") return "/dashboard/dashboard";
+  return "/dashboard/dashboard";
 }
 
 export function buildAvatarSeed(fullName: string) {

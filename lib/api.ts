@@ -69,9 +69,8 @@ function toApiError(status: number, envelope?: ApiEnvelope<unknown>) {
   });
 }
 
-function isExpiredTokenError(error: ApiError) {
-  if (error.code === "ACCESS_TOKEN_EXPIRED") return true;
-  return error.message.toLowerCase().includes("jwt expired");
+function isDefinitiveAuthFailure(status: number) {
+  return status === 401 || status === 403;
 }
 
 // BACKEND_LIVE — token refresh (skipped when NEXT_PUBLIC_COMING_SOON=true)
@@ -97,7 +96,9 @@ async function refreshAccessToken() {
   }
 
   if (!response.ok || !payload || !("success" in payload) || !payload.success) {
-    clearAuthSession();
+    if (isDefinitiveAuthFailure(response.status)) {
+      clearAuthSession();
+    }
     return false;
   }
 
@@ -167,12 +168,11 @@ export async function apiFetch<T>(
 
   const apiError = toApiError(response.status, payload as ApiEnvelope<unknown>);
 
-  if (auth && !_retried && response.status === 401 && isExpiredTokenError(apiError)) {
+  if (auth && !_retried && response.status === 401 && getRefreshToken()) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       return apiFetch<T>(path, { ...options, _retried: true });
     }
-    clearAuthSession();
   }
 
   throw apiError;

@@ -21,7 +21,7 @@ When `NEXT_PUBLIC_COMING_SOON=true` and `COMING_SOON=true`, the frontend does no
 
 | Area | Status | Notes |
 |------|--------|--------|
-| Register + WhatsApp OTP | Done | `phone`, `whatsappOptIn`, verify panel, 180s resend |
+| Register + email OTP | Done | `phone`, verify panel, 180s resend (`purpose: email_verification`) |
 | `joinAccess` + payment form | Done | [`booking-detail-panel.tsx`](app/dashboard/_components/bookings/booking-detail-panel.tsx) |
 | `POST .../payment`, `POST .../join` | Done | [`lib/live-sessions-student-api.ts`](lib/live-sessions-student-api.ts) |
 | Socket: accepted, payment_*, expired, meet_link_updated | Done | [`notifications-context.tsx`](lib/notifications-context.tsx) |
@@ -64,7 +64,7 @@ When `NEXT_PUBLIC_COMING_SOON=true` and `COMING_SOON=true`, the frontend does no
 
 ## API quick reference
 
-- Register: `POST /auth/register` `{ phone, whatsappOptIn, ... }`
+- Register: `POST /auth/register` `{ phone, email, ... }` — OTP via email (Hostinger SMTP)
 - Verify: `POST /auth/verify-email` `{ userId, otp }`
 - Booking detail: `GET /live-sessions/bookings/me/:id` → `joinAccess`
 - Pay: `POST /live-sessions/bookings/me/:id/payment`

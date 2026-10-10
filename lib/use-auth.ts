@@ -36,8 +36,13 @@ async function hydrateOnce() {
     // BACKEND_LIVE — session restore via POST /auth/refresh
     try {
       await authApi.refresh();
-    } catch {
-      clearAuthSession();
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        (error.statusCode === 401 || error.statusCode === 403)
+      ) {
+        clearAuthSession();
+      }
     } finally {
       hydrated = true;
       hydratePromise = null;
@@ -88,7 +93,6 @@ export function useAuth() {
       password: string;
       fullName: string;
       phone: string;
-      whatsappOptIn: boolean;
     }) => {
       return authApi.register(payload);
     },

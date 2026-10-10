@@ -54,6 +54,16 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
   headers.delete("host");
   headers.delete("content-length");
 
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    request.headers.get("cf-connecting-ip") ||
+    "";
+  if (clientIp) {
+    headers.set("x-forwarded-for", clientIp);
+    headers.set("x-real-ip", clientIp);
+  }
+
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
 
   let body: ArrayBuffer | undefined;
@@ -90,7 +100,7 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
     if (isBackendUnreachable(cause)) {
       return errorEnvelope(
         503,
-        "Cannot reach the API server. Ensure the backend is running on port 3000 (npm run start:dev:api-only) and try again.",
+        "Cannot reach the API server. Set BACKEND_API_URL to your live Render API (e.g. https://mentorlagbe-backend-final.onrender.com/api/v1), redeploy/restart Next.js, or run the backend locally on port 3000.",
         "SERVICE_UNAVAILABLE"
       );
     }

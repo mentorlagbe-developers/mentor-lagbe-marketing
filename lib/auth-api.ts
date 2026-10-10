@@ -54,7 +54,6 @@ export async function register(payload: {
   password: string;
   fullName: string;
   phone: string;
-  whatsappOptIn: boolean;
 }) {
   return apiFetch<{ userId: string; message?: string }>("/auth/register", {
     method: "POST",

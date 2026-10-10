@@ -11,6 +11,7 @@ import { readAuthSnapshot, subscribeAuthStore } from "@/lib/mock-auth";
 import { LandingHeader } from "@/app/sections/landing/landing-header";
 import Footer from "@/app/components/ui/Footer";
 import { isComingSoonMode } from "@/lib/coming-soon";
+import { useAuth } from "@/lib/use-auth";
 
 function formatBdt(value: string | number) {
   const amount = typeof value === "string" ? Number(value) : value;
@@ -30,6 +31,7 @@ export default function CertificationDetailPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
   const user = useSyncExternalStore<AuthUser | null>(subscribeAuthStore, readAuthSnapshot, () => null);
+  const { isHydrating } = useAuth();
   const slug = String(params.slug ?? "");
   const comingSoon = isComingSoonMode();
 
@@ -62,6 +64,7 @@ export default function CertificationDetailPage() {
 
   async function handleBook() {
     if (!exam) return;
+    if (isHydrating) return;
     if (!user) {
       router.push("/?auth=login");
       return;

@@ -69,13 +69,21 @@ const MENTOR_STATUS_SESSION_KEY = "ml_mentor_status_confirmed_shown";
 
 type SocketEvent = (typeof SHARED_SOCKET_EVENTS)[number];
 
-function deriveWsBase(): string {
-  const apiUrl = process.env.NEXT_PUBLIC_WS_URL ?? process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) return "http://localhost:3000";
-  return apiUrl.replace(/\/api\/v\d+\/?$/, "").replace(/\/$/, "") || "http://localhost:3000";
-}
+/** Socket.IO must target the API host (Render), not the Next.js site or `/api/v1` proxy path. */
+export function deriveNotificationsWsBase(): string {
+  const wsEnv = process.env.NEXT_PUBLIC_WS_URL?.trim();
+  if (wsEnv) {
+    return wsEnv.replace(/\/$/, "");
+  }
 
-const WS_BASE = deriveWsBase();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (apiUrl && /^https?:\/\//i.test(apiUrl)) {
+    const origin = apiUrl.replace(/\/api\/v\d+\/?$/, "").replace(/\/$/, "");
+    if (origin) return origin;
+  }
+
+  return "http://localhost:3000";
+}
 
 const EVENT_META: Record<string, { title: string; body: string }> = {
   "session:request": {
@@ -334,7 +342,7 @@ export function NotificationsProvider({
         ? [...MENTOR_SOCKET_EVENTS, ...STUDENT_SOCKET_EVENTS]
         : [...STUDENT_SOCKET_EVENTS];
 
-    const socket = io(`${WS_BASE}/notifications`, {
+    const socket = io(`${deriveNotificationsWsBase()}/notifications`, {
       auth: { token },
       transports: ["websocket", "polling"],
       reconnectionAttempts: 5,

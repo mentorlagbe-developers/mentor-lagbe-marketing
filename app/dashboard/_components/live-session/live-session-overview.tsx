@@ -290,7 +290,7 @@ export function LiveSessionOverview() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Meeting & payment</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Pay after your mentor accepts. Join unlocks at session time — we also notify you on WhatsApp.
+          Pay after your mentor accepts. Join unlocks at session time — we also email you and send in-app updates.
         </p>
         {focusBooking ? (
           <BookingDetailPanel

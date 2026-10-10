@@ -121,7 +121,7 @@ function LiveSessionPaymentsSection() {
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Approve or reject student live session payments. Students are notified via in-app and WhatsApp.
+          Approve or reject student live session payments. Students are notified via in-app and email.
         </p>
         <Button variant="secondary" size="sm" onClick={() => void load()}>
           Refresh
